@@ -1,0 +1,35 @@
+[Telegram]
+# Get your api_id and api_hash from my.telegram.org
+# WARNING: This ID is associated with your account.
+# Protect them like passwords. Never share them. Ever.
+api_id = 
+api_hash = 
+
+# Session filename 
+# WARNING: ANY *.session files contain active Telegram authorization keys.
+# Protect them like passwords. Never share them. Ever.
+session_name = backup_session
+
+[Backup]
+# Root media folder
+media_dir = media_backup
+# Comma-separated list of target chat IDs for CLI mode (e.g. -100123456789,12345678)
+chat_ids = 
+# Parallel media download workers (1-10)
+download_workers = 3
+# Set True to automatically include Saved Messages, False by default
+backup_saved_messages = False
+# Download media toggle (True or False)
+download_media = False
+# Max file size limit in MB (0 = unlimited)
+max_file_size_mb = 20
+
+[Update]
+# GitHub repository for updates
+github_repo = no-n-ice/TeleBackup
+# Tracked branch (e.g. main)
+update_branch = main
+# Check updates on startup (True or False)
+check_on_start = True
+# Optional: Personal Access Token for private repository access
+# github_token = 

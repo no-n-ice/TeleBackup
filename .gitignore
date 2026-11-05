@@ -1,0 +1,58 @@
+# === SENSITIVE / CREDENTIALS ===
+config.ini
+config*.ini
+*.session
+*.session-*
+*.session*
+.env
+.env.*
+!.env.example
+.session_token
+.csrf_token
+.flask_secret
+.pin
+
+# === DATABASE FILES & RECOVERY ARTIFACTS ===
+*.db
+*.db-*
+*.db.*
+*.sqlite
+*.sqlite3
+*.bak
+*.bak.*
+*.backup
+*.dump
+*.corrupt_*
+
+# === GENERATED / RUNTIME ===
+media_backup/
+dialog_cache*.json
+db_exports/
+_update_pending.flag
+_update_temp*
+.whisper_verified
+*.log
+*.tmp
+scratch/
+
+# === PYTHON ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+
+# === OS & IDE JUNK ===
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

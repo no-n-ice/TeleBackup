@@ -1,0 +1,361 @@
+/* auth.css — Telegram Session Status Banner & Secure Auth Modal */
+
+/* Session Status Banner */
+.session-warning-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, #d35400, #e67e22);
+    color: #ffffff;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    position: relative;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.session-warning-banner.active {
+    display: flex;
+}
+
+.banner-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.banner-btn {
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #ffffff;
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.banner-btn:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: translateY(-1px);
+}
+
+.banner-btn-secondary {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* User Profile Badge in Header */
+.auth-user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--bg-color-alt);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    margin-right: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.auth-user-badge:hover {
+    background: var(--hover-bg);
+}
+
+.auth-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e74c3c;
+    display: inline-block;
+}
+
+.auth-status-dot.online {
+    background: #2ecc71;
+    box-shadow: 0 0 6px #2ecc71;
+}
+
+/* Auth Modal Dialog */
+.auth-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 10010;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-modal-overlay.active {
+    display: flex;
+}
+
+.auth-dialog {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    width: 440px;
+    max-width: 92vw;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: zoomIn 0.2s ease;
+}
+
+@keyframes zoomIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.auth-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--header-bg);
+}
+
+.auth-header h3 {
+    margin: 0;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auth-body {
+    padding: 20px;
+}
+
+.auth-step {
+    display: none;
+}
+
+.auth-step.active {
+    display: block;
+}
+
+.auth-form-group {
+    margin-bottom: 16px;
+}
+
+.auth-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text-color);
+}
+
+.auth-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.auth-input:focus {
+    border-color: var(--accent-color);
+}
+
+.auth-security-notice {
+    background: rgba(39, 174, 96, 0.1);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text-color-muted);
+    margin-top: 14px;
+    line-height: 1.4;
+}
+
+.auth-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.auth-error {
+    color: #e74c3c;
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+}
+
+/* =========================================================================
+   SESSIONS MODAL & SESSION CARDS
+   ========================================================================= */
+
+.session-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.session-card:hover {
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.session-card.active {
+    border-color: #00c853;
+    background: rgba(0, 200, 83, 0.04);
+    box-shadow: 0 0 12px rgba(0, 200, 83, 0.08);
+}
+
+.session-avatar-wrap {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.session-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.session-avatar-letter {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    text-transform: uppercase;
+}
+
+.session-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.session-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.session-active-badge {
+    font-size: 10px;
+    font-weight: 600;
+    background: #00c853;
+    color: #ffffff;
+    padding: 1px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+}
+
+.session-meta-row {
+    font-size: 11px;
+    color: var(--text-color-light);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.session-meta-sep {
+    opacity: 0.4;
+}
+
+.session-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.session-btn {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+    transition: all 0.15s ease;
+}
+
+.session-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+.session-btn-switch {
+    background: var(--accent-color, #2481cc);
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.session-btn-switch:hover {
+    background: #1d6fa8;
+    color: #ffffff;
+}
+
+.session-btn-shutdown {
+    color: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.session-btn-shutdown:hover {
+    background: #e74c3c;
+    color: #ffffff;
+    border-color: #e74c3c;
+}
+

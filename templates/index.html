@@ -1,0 +1,2735 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="auth-csrf" content="{{ auth_csrf_token }}">
+    <title data-i18n="page.title">TeleBackup</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon.png') }}?v={{ version }}">
+    <!-- i18n script loaded first -->
+    <script src="{{ url_for('static', filename='js/i18n.js') }}?v={{ version }}"></script>
+    <!-- Theme preload & CSRF Helper -->
+    <script>
+        window.getCsrfToken = function () {
+            var m = document.querySelector('meta[name="auth-csrf"]');
+            return m ? m.getAttribute('content') : '';
+        };
+        (function () {
+            var t = localStorage.getItem('tg_viewer_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme-preload', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/messages.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/archive.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/lightbox.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}?v={{ version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ version }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" integrity="sha384-T/4KgSWuZEPozpPz7rnnp/5lDSnpY1VPJCojf1S81uTHS1E38qgLfMgVsAeRCWc4" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" integrity="sha384-J8C0MvgX4WP58J4N2W99vCKd2J6z99ynOJ5bEfE6jeP7kVTW1drYtv/jzrxM5jbm" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+
+<body data-theme="dark">
+
+    <!-- Telegram Session Status Alert Banner -->
+    <div id="session-warning-banner" class="session-warning-banner">
+        <div class="banner-left">
+            <span>⚠️</span>
+            <span data-i18n="auth.unauthorized_banner"><strong>Telegram session not authorized.</strong> Run
+                <code>python cli.py</code> in terminal or log in directly via WebUI.</span>
+        </div>
+        <div class="banner-actions">
+            <button id="banner-login-btn" class="banner-btn" data-i18n="auth.login_action">🔑 Log In via WebUI</button>
+            <button id="banner-refresh-btn" class="banner-btn banner-btn-secondary" title="Check session status again"
+                data-i18n="auth.refresh_status" data-i18n-title="auth.refresh_status">🔄 Refresh Status</button>
+        </div>
+    </div>
+
+    <!-- Global background layer -->
+    <div id="global-bg-layer"></div>
+    <div id="app-layout">
+
+        <aside id="left-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-header-row sidebar-header-row-1">
+                    <div id="auth-user-badge" class="auth-user-badge" title="Click to manage Telegram sessions"
+                        onclick="if(typeof openSessionsModal==='function') openSessionsModal();">
+                        <span id="auth-status-dot" class="auth-status-dot"></span>
+                        <span id="auth-user-name">Telegram</span>
+                    </div>
+                </div>
+                <div class="sidebar-header-row sidebar-header-row-2">
+                    <div class="sidebar-menu-wrapper">
+                        <button id="sidebar-menu-btn" class="sidebar-menu-btn" title="Menu" aria-label="Menu"
+                            type="button">
+                            <span class="sidebar-menu-icon">☰</span>
+                        </button>
+                        <div id="sidebar-menu-flyout" class="sidebar-menu-flyout" style="display: none;">
+                            <button id="faq-open-btn" class="icon-btn flyout-btn" title="Help" data-i18n-title="btn.faq"
+                                onclick="FAQModal.open()">❔</button>
+                            <button id="theme-toggle-btn" class="icon-btn flyout-btn" title="Toggle Theme"
+                                data-i18n-title="btn.theme" onclick="ThemeEngine.toggle()">☀️</button>
+                            <button id="settings-open-btn" class="icon-btn flyout-btn" title="Settings"
+                                data-i18n-title="btn.settings" onclick="SettingsModal.open()">⚙️</button>
+                            <button id="investigator-open-btn" class="icon-btn flyout-btn"
+                                title="Investigator & Analytics" onclick="InvestigatorModal.open()">📊</button>
+                            <button id="sidebar-export-btn" class="icon-btn flyout-btn" title="Export Chat"
+                                data-i18n-title="export.title">📤</button>
+                            <button id="archive-toggle-btn" class="icon-btn flyout-btn" title="Archive / Chats"
+                                data-i18n-title="btn.archive">📥</button>
+                        </div>
+                    </div>
+                    <button id="sidebar-folders-btn" class="sidebar-menu-btn" title="Folders & Category Filter"
+                        aria-label="Toggle Folders" type="button" style="padding: 0 6px;">
+                        <span class="sidebar-menu-icon">📁</span>
+                    </button>
+                    <div id="search-container" class="sidebar-search-wrap">
+                        <span class="sidebar-search-icon">🔍</span>
+                        <input type="text" id="search-input" class="sidebar-search-input" placeholder="Search..."
+                            data-i18n-placeholder="search.placeholder" autocomplete="off">
+                        <button id="cancel-search-btn" class="sidebar-cancel-search-btn" title="Clear search"
+                            data-i18n="search.cancel" style="display: none;" type="button">✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chat-folders-bar" class="chat-folders-bar open">
+                <div class="folder-bar-col" style="flex: 1; min-width: 0;">
+                    <select id="folder-sort-type" class="folder-bar-select" title="Sort / Filter by type">
+                        <option value="all">Type: All</option>
+                        <option value="dms">💬 DMs</option>
+                        <option value="channels">📢 Channels</option>
+                        <option value="groups">👥 Groups</option>
+                        <option value="bots">🤖 Bots</option>
+                    </select>
+                </div>
+                <div class="folder-bar-col"
+                    style="flex: 1.3; min-width: 0; display: flex; align-items: center; gap: 4px;">
+                    <select id="folder-category-select" class="folder-bar-select" title="Categorise by folder">
+                        <option value="none">Folder: All</option>
+                    </select>
+                    <button id="folder-manage-btn" class="folder-bar-btn" title="Manage Folders"
+                        type="button">⚙️</button>
+                </div>
+                <button id="folder-clear-btn" class="folder-bar-btn folder-bar-clear" title="Clear selection"
+                    type="button">✕</button>
+            </div>
+
+            <div id="legacy-chat-list" style="padding: 15px;">
+                <select id="chat-select" style="width: 100%; margin-bottom: 10px; display: none;">
+                    <option value="" data-i18n="select.choose_chat">-- Select Chat --</option>
+                </select>
+                <ul id="custom-chat-list"></ul>
+            </div>
+
+            <div id="archive-settings-view" style="display: none; padding: 15px; flex-direction: column; height: 100%;">
+                <h3 style="margin-top:0;" data-i18n="archive.settings_title">Download Settings</h3>
+                <div class="settings-group"
+                    style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 5px;">
+                    <label class="setting-item card-style">
+                        <input type="checkbox" id="set-dl-photos" checked class="hidden-cb">
+                        <div class="s-name" data-i18n="media.photos">Photos</div>
+                        <div class="s-row"><span class="s-icon">🖼️</span> <input type="number" id="set-sz-photos"
+                                class="size-input" placeholder="Max MB" data-i18n-placeholder="archive.max_mb"
+                                onclick="event.stopPropagation()"></div>
+                    </label>
+                    <label class="setting-item card-style">
+                        <input type="checkbox" id="set-dl-videos" checked class="hidden-cb">
+                        <div class="s-name" data-i18n="media.videos">Videos</div>
+                        <div class="s-row"><span class="s-icon">📹</span> <input type="number" id="set-sz-videos"
+                                class="size-input" placeholder="Max MB" data-i18n-placeholder="archive.max_mb"
+                                onclick="event.stopPropagation()"></div>
+                    </label>
+                    <label class="setting-item card-style">
+                        <input type="checkbox" id="set-dl-voices" checked class="hidden-cb">
+                        <div class="s-name" data-i18n="media.voices">Voice</div>
+                        <div class="s-row"><span class="s-icon">🎤</span> <input type="number" id="set-sz-voices"
+                                class="size-input" placeholder="Max MB" data-i18n-placeholder="archive.max_mb"
+                                onclick="event.stopPropagation()"></div>
+                    </label>
+                    <label class="setting-item card-style">
+                        <input type="checkbox" id="set-dl-audio" checked class="hidden-cb">
+                        <div class="s-name" data-i18n="media.audio">Audio</div>
+                        <div class="s-row"><span class="s-icon">🎧</span> <input type="number" id="set-sz-audio"
+                                class="size-input" placeholder="Max MB" data-i18n-placeholder="archive.max_mb"
+                                onclick="event.stopPropagation()"></div>
+                    </label>
+                    <label class="setting-item card-style">
+                        <input type="checkbox" id="set-dl-files" checked class="hidden-cb">
+                        <div class="s-name" data-i18n="media.files">Files</div>
+                        <div class="s-row"><span class="s-icon">📎</span> <input type="number" id="set-sz-files"
+                                class="size-input" placeholder="Max MB" data-i18n-placeholder="archive.max_mb"
+                                onclick="event.stopPropagation()"></div>
+                    </label>
+                </div>
+
+                <div class="action-buttons-row"
+                    style="display: flex; gap: 6px; align-items: center; width: 100%; margin-top: 15px; margin-bottom: 10px;">
+                    <button id="quick-refresh-btn" type="button" class="refresh-btn quick-refresh-btn"
+                        title="Quick refresh (Telegram delta scan for new chats, ~1s)"
+                        data-i18n-title="archive.quick_refresh_title">
+                        <span style="flex-shrink:0;">⚡</span> <span data-i18n="archive.quick_refresh">Quick</span>
+                    </button>
+
+                    <button id="full-refresh-btn" type="button" class="refresh-btn full-refresh-btn"
+                        title="Full Telegram scan (all dialogs from scratch, 15–30s)"
+                        data-i18n-title="archive.full_refresh_title">
+                        <span style="flex-shrink:0;">🔄</span> <span data-i18n="archive.full_refresh">Full</span>
+                    </button>
+
+                    <button id="refresh-hint-btn" class="refresh-hint-btn" type="button"
+                        title="Help: Refresh modes & troubleshooting" data-i18n-title="archive.refresh_hint_title"
+                        onclick="if(window.RefreshHintModal) window.RefreshHintModal.open();">
+                        ℹ️
+                    </button>
+
+                    <label class="live-update-toggle card-style"
+                        title="Live Update — 24/7 background capture (no read receipts)"
+                        data-i18n-title="archive.live_title"
+                        style="display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border-radius: 6px; margin: 0; flex-shrink: 0; cursor: pointer;">
+                        <input type="checkbox" id="set-live-update" class="hidden-cb">
+                        <span class="s-icon" style="font-size: 16px; margin: 0;">📡</span>
+                    </label>
+                </div>
+
+                <button id="start-archive-btn" class="start-btn" disabled data-i18n="archive.start_0">Start Archiving
+                    (0)</button>
+            </div>
+
+            <!-- Col resizer for sidebar -->
+            <div id="resizer-left" class="col-resizer"></div>
+        </aside>
+
+        <main id="center-column">
+            <header id="center-header">
+                <h2 id="chat-header-title" data-i18n="header.chat">Chat</h2>
+
+                <div id="chat-header-info" style="display: none; align-items: center; gap: 10px; cursor: pointer;">
+                    <img id="chat-avatar" src="" class="chat-header-avatar" alt="avatar" style="display: none;">
+                    <div id="chat-header-avatar-placeholder" class="chat-header-avatar-placeholder"
+                        style="display: none;"></div>
+                    <div>
+                        <div id="chat-header-name" style="font-weight: 600; font-size: 15px;"></div>
+                        <div
+                            style="font-size: 12px; color: var(--text-color-light); display: flex; align-items: center; gap: 8px;">
+                            <span id="message-count-display"></span> <span id="message-count-total"
+                                style="display: none;"></span>
+                            <span id="chat-header-participants-badge"
+                                style="display: none; background: rgba(36, 129, 204, 0.15); color: var(--link-color); border: 1px solid rgba(36, 129, 204, 0.3); border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 600; cursor: pointer;"
+                                title="Subscribers & Churn Log">👥</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-right-controls" style="display: flex; align-items: center; gap: 8px;">
+                    <div id="chat-search-wrap" class="chat-search-wrap" style="display: none;">
+                        <span class="chat-search-icon">🔍</span>
+                        <input type="text" id="chat-search-input" class="chat-search-input"
+                            placeholder="Search in chat..." data-i18n-placeholder="search.in_chat_placeholder"
+                            autocomplete="off">
+                        <button id="chat-cancel-search-btn" class="chat-cancel-search-btn" title="Clear in-chat search"
+                            data-i18n-title="search.clear" style="display: none;" type="button">✕</button>
+                    </div>
+                    <button id="chat-search-toggle-btn" class="icon-btn" title="Search in this chat (Ctrl+F)"
+                        data-i18n-title="search.toggle_title" style="display: none;">🔍</button>
+                    <input type="date" id="date-picker" class="date-picker-input" title="Search by date"
+                        data-i18n-title="search.date_title" style="display: none;">
+                    <button id="chat-header-export-btn" class="icon-btn" title="Export Chat"
+                        data-i18n-title="export.title" style="display: none;">📤</button>
+                    <button id="chat-refresh-btn" class="icon-btn" title="Sync New Messages"
+                        data-i18n-title="chat.sync_refresh" style="display: none;">🔄</button>
+                    <button id="chat-admin-log-btn" class="icon-btn" title="Admin Event Log"
+                        data-i18n-title="admin_log.title" style="display: none;"
+                        onclick="if(window.AdminLogModal && window.currentChatId) AdminLogModal.open(window.currentChatId);">🛡️</button>
+                    <button id="chat-settings-header-btn" class="icon-btn chat-settings-btn"
+                        title="Chat Archiving & Range Settings" data-i18n-title="archive.chat_settings"
+                        style="display: none;"
+                        onclick="event.stopPropagation(); if(typeof openActiveChatSettings==='function') openActiveChatSettings(this, event);">⚙️</button>
+                </div>
+            </header>
+
+            <!-- Active Tasks Container (Multi-Task Parallel Banners) -->
+            <div id="chat-active-tasks-container"
+                style="display: flex; flex-direction: column; width: 100%; z-index: 50;">
+                <div id="chat-active-task-banner"
+                    style="display: none; background: var(--panel-bg); border-bottom: 1px solid var(--border-color); padding: 8px 16px; align-items: center; justify-content: space-between; gap: 12px; z-index: 50; transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                        <span id="chat-task-banner-icon" style="font-size: 16px; flex-shrink: 0;">⚡</span>
+                        <div style="flex: 1; min-width: 0;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span id="chat-task-banner-text"
+                                    style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-color);">Starting
+                                    task...</span>
+                                <span id="chat-task-banner-pct"
+                                    style="font-size: 11px; font-weight: bold; color: var(--link-color); margin-left: 8px; flex-shrink: 0;">0%</span>
+                            </div>
+                            <div
+                                style="width: 100%; height: 5px; background: rgba(127,127,127,0.2); border-radius: 3px; overflow: hidden;">
+                                <div id="chat-task-banner-fill"
+                                    style="width: 0%; height: 100%; background: var(--link-color); transition: width 0.2s ease; border-radius: 3px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                        <button id="chat-task-banner-cancel-btn"
+                            style="background: none; border: 1px solid var(--border-color); color: var(--text-color-light); border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer;"
+                            data-i18n="btn.cancel">✕ Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upper Cutoff Gap Banner -->
+            <div id="chat-cutoff-banner" class="chat-cutoff-banner upper-cutoff" style="display: none;">
+                <div class="cutoff-banner-content">
+                    <span class="cutoff-banner-icon">⚡</span>
+                    <span class="cutoff-banner-text" id="chat-cutoff-banner-text" data-i18n="cutoff.upper_text">Newer
+                        messages available on Telegram.</span>
+                </div>
+                <div class="cutoff-banner-actions">
+                    <button id="chat-cutoff-resume-btn" class="cutoff-btn primary"
+                        onclick="if(window.openResumeModal) window.openResumeModal(window.currentChatId, 'latest_first');"
+                        data-i18n="cutoff.upper_btn">⚡ Catch Up Latest</button>
+                    <button id="chat-cutoff-dismiss-btn" class="cutoff-btn-close"
+                        onclick="this.closest('#chat-cutoff-banner').style.display='none';">✕</button>
+                </div>
+            </div>
+
+            <!-- Sticky Pinned Messages Bar -->
+            <div id="sticky-pinned-bar" class="sticky-pinned-bar" style="display: none;">
+                <div class="pinned-bar-icon">📌</div>
+                <div class="pinned-bar-content" id="pinned-bar-content"
+                    onclick="if(window.PinnedEngine) window.PinnedEngine.scrollToCurrentPin();">
+                    <div class="pinned-bar-title" data-i18n="pinned.bar_title">Pinned Message</div>
+                    <div class="pinned-bar-snippet" id="pinned-bar-snippet">Click to jump to pin</div>
+                </div>
+                <button class="pinned-bar-next" id="pinned-bar-next" title="Next pinned message"
+                    onclick="if(window.PinnedEngine) window.PinnedEngine.nextPin();">❯</button>
+            </div>
+
+            <div id="chat-container" data-mode="chat">
+                <div class="empty-state" data-i18n="status.waiting">Waiting for chat selection...</div>
+            </div>
+
+            <div id="archive-center-view" style="display: none; padding: 20px; overflow-y: auto; height: 100%;">
+                <div class="archive-section">
+                    <h3 data-i18n="archive.completed">Completed Archives</h3>
+                    <div id="completed-bubbles" class="dialogs-grid"></div>
+                </div>
+
+                <div class="archive-section" style="margin-top: 25px;">
+                    <h3 data-i18n="archive.available">Available Chats</h3>
+
+                    <div class="archive-folders-and-view"
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+                        <div class="archive-folder-tabs" id="archive-folder-tabs">
+                            <button type="button" class="folder-tab active" data-folder="all">All</button>
+                            <button type="button" class="folder-tab" data-folder="channel">Channels</button>
+                            <button type="button" class="folder-tab" data-folder="group">Groups</button>
+                            <button type="button" class="folder-tab" data-folder="dm">DMs</button>
+                            <button type="button" class="folder-tab" data-folder="bot">Bots</button>
+                        </div>
+                        <div class="archive-col-switch" id="archive-col-switch" title="Toggle 1-column / 2-column view">
+                            <button type="button" class="col-switch-btn active" data-cols="1"
+                                title="1 Column view">☰</button>
+                            <button type="button" class="col-switch-btn" data-cols="2" title="2 Columns view">⊞</button>
+                        </div>
+                    </div>
+
+                    <div class="archive-filters-bar"
+                        style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; align-items: center;">
+                        <input type="text" id="archive-search-input" placeholder="Search specific chat..."
+                            data-i18n-placeholder="archive.search_chat"
+                            style="flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg); color: var(--text-color);">
+
+                        <select id="archive-sort-select"
+                            style="padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg); color: var(--text-color); outline: none;">
+                            <option value="timestamp" data-i18n="archive.sort_activity">Sort: Recent Activity</option>
+                            <option value="name" data-i18n="archive.sort_alpha">Sort: Name (A-Z)</option>
+                            <option value="message_count" data-i18n="archive.sort_count">Sort: Message Count</option>
+                        </select>
+
+                        <select id="archive-type-select" style="display: none;">
+                            <option value="all" data-i18n="archive.type_all">Type: All</option>
+                            <option value="channel" data-i18n="archive.type_channels">Type: Channels</option>
+                            <option value="group" data-i18n="archive.type_groups">Type: Groups</option>
+                            <option value="dm" data-i18n="archive.type_dms">Type: DMs</option>
+                            <option value="bot" data-i18n="archive.type_bots">Type: Bots</option>
+                        </select>
+                    </div>
+
+                    <ul id="dialogs-list" class="dialogs-list">
+                        <li style="padding: 15px; color: var(--text-color-light); text-align: center;"
+                            data-i18n="archive.empty_hint">
+                            Click "🔄 Refresh Telegram cache" to load your chat list
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+
+        <aside id="right-sidebar">
+            <!-- Col resizer for right sidebar -->
+            <div id="resizer-right" class="col-resizer"></div>
+
+            <div class="sidebar-header" style="justify-content: space-between;">
+                <h2 data-i18n="sidebar.info">Info</h2>
+                <button id="close-info-btn" class="icon-btn" title="Hide panel" data-i18n-title="btn.hide_panel"
+                    style="display: none; font-size: 16px;">✕</button>
+            </div>
+
+            <!-- Collapsible "About chat" section -->
+            <div id="chat-about-panel" class="chat-about-panel" style="display: none;">
+                <div id="chat-about-toggle" class="chat-about-header">
+                    <span id="chat-about-arrow" style="font-size: 10px;">▶</span>
+                    <span style="font-weight: 600; font-size: 13px;" data-i18n="chat.about">About chat</span>
+                </div>
+                <div id="chat-about-body" class="chat-about-body" style="display: none;">
+                    <div id="chat-about-text" class="chat-about-text"></div>
+                    <div id="chat-linked-row" class="chat-linked-row" style="display: none;">
+                        <span id="chat-linked-label"></span>
+                    </div>
+                    <div id="chat-range-info-row"
+                        style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border-color); font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+                        <span id="chat-range-info-text">⏳ Range: All messages</span>
+                        <button class="action-btn chat-settings-btn" style="padding: 2px 6px; font-size: 10px;"
+                            onclick="event.stopPropagation(); if(typeof openActiveChatSettings==='function') openActiveChatSettings(this, event);">⚙️
+                            Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab switcher: Stats / Media on one line with clear divide -->
+            <div class="right-sidebar-split-tabs-wrap">
+                <div class="right-sidebar-split-tabs">
+                    <button type="button" class="r-split-tab" id="rs-tab-stats" data-target="rs-stats">
+                        <span class="tab-icon">📊</span> <span data-i18n="tab.stats">Stats</span>
+                    </button>
+                    <div class="r-split-divider"></div>
+                    <button type="button" class="r-split-tab" id="rs-tab-media" data-target="rs-media">
+                        <span class="tab-icon">📁</span> <span data-i18n="tab.media">Media</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Stats -->
+            <div id="rs-stats" class="rs-content" style="display: none;">
+                <!-- Pure DB storage stats (shown when no chat is open) -->
+                <div id="pure-db-stats-block" style="padding: 15px; display: block;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-color-light); margin-bottom: 12px; font-weight: 600;"
+                        data-i18n="stats.storage_overview">
+                        Storage Overview
+                    </div>
+                    <div class="db-stat-cards-grid"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div class="db-stat-card" data-card="messages" title="Click to view message breakdown">
+                            <div style="font-size: 18px; margin-bottom: 4px;">💬</div>
+                            <div id="pure-db-msg-count"
+                                style="font-size: 17px; font-weight: 700; color: var(--text-color);">-</div>
+                            <div style="font-size: 11px; color: var(--text-color-light); margin-top: 2px;"
+                                data-i18n="stats.messages">Messages</div>
+                        </div>
+                        <div class="db-stat-card" data-card="media" title="Click to view media breakdown">
+                            <div style="font-size: 18px; margin-bottom: 4px;">📁</div>
+                            <div id="pure-db-media-count"
+                                style="font-size: 17px; font-weight: 700; color: var(--text-color);">-</div>
+                            <div style="font-size: 11px; color: var(--text-color-light); margin-top: 2px;"
+                                data-i18n="stats.media_files">Media Files</div>
+                        </div>
+                        <div class="db-stat-card" data-card="db" title="Click to view database details">
+                            <div style="font-size: 18px; margin-bottom: 4px;">💾</div>
+                            <div id="pure-db-size" style="font-size: 15px; font-weight: 700; color: var(--text-color);">
+                                -</div>
+                            <div style="font-size: 11px; color: var(--text-color-light); margin-top: 2px;"
+                                data-i18n="stats.db_size">Database Size</div>
+                        </div>
+                        <div class="db-stat-card" data-card="disk" title="Click to view media storage details">
+                            <div style="font-size: 18px; margin-bottom: 4px;">📦</div>
+                            <div id="pure-media-folder-size"
+                                style="font-size: 15px; font-weight: 700; color: var(--text-color);">-</div>
+                            <div style="font-size: 11px; color: var(--text-color-light); margin-top: 2px;"
+                                data-i18n="stats.media_disk">Media on Disk</div>
+                        </div>
+                    </div>
+                    <!-- Detailed Expandable Panel -->
+                    <div id="db-stat-card-detail" class="db-stat-card-detail"
+                        style="display: none; margin-bottom: 15px;"></div>
+                    <div style="font-size: 12px; color: var(--text-color-light); text-align: center; margin-top: 15px; padding: 10px; background: rgba(136,136,136,0.08); border-radius: 6px;"
+                        data-i18n="stats.pure_db_hint">
+                        💡 Select any chat on the left to view detailed statistics, participants, and media gallery.
+                    </div>
+                </div>
+
+                <!-- Chat-specific stats (shown when chat is selected) -->
+                <div id="chat-stats-block" style="padding: 15px; display: none;">
+                    <h3 style="margin-top: 0; font-size: 14px; color: var(--sender-name-color);"
+                        data-i18n="stats.chat_title">Chat Data</h3>
+                    <ul id="local-stats-list" class="stats-list">
+                        <li data-i18n="status.loading">Loading...</li>
+                    </ul>
+
+                    <!-- Subscribers & Churn Widget -->
+                    <div id="subscribers-churn-widget"
+                        style="margin-top: 15px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                            <span style="font-weight:600; font-size:12px;" data-i18n="part.stats_title">👥 Subscribers &
+                                Churn</span>
+                            <span id="stats-subscribers-count"
+                                style="font-weight:700; color:var(--link-color); font-size:13px;">—</span>
+                        </div>
+                        <div style="display:flex; gap:12px; font-size:11px; opacity:0.8; margin-bottom:8px;">
+                            <span>Active: <b id="stats-subscribers-active" style="color:#10b981;">—</b></span>
+                            <span>Exited: <b id="stats-subscribers-left" style="color:#ef4444;">—</b></span>
+                        </div>
+                        <button type="button" id="stats-view-subscribers-btn" class="action-btn"
+                            style="width:100%; font-size:11px; padding:4px 8px; cursor:pointer;"
+                            data-i18n="part.stats_view_btn">👥 View Subscribers & Churn Log</button>
+                    </div>
+
+                    <div id="top-users-block" style="margin-top: 20px; display: none;">
+                        <h4 style="margin-bottom: 10px; font-size: 13px; color: var(--sender-name-color);"
+                            data-i18n="stats.top_users">Top Participants</h4>
+                        <ul id="top-users-list" class="stats-list"></ul>
+                        <button id="show-all-users-btn" class="secondary-btn"
+                            style="width: 100%; margin-top: 10px; display: none;" data-i18n="stats.show_all">Show
+                            all</button>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin-bottom: 10px; font-size: 13px; color: var(--sender-name-color);"
+                            data-i18n="stats.activity">Activity</h4>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="activity-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Media Gallery -->
+            <div id="rs-media" class="rs-content"
+                style="display: none; position: relative; flex-direction: column; height: 100%;">
+                <!-- Placeholder when no chat is selected -->
+                <div id="media-no-chat-view"
+                    style="padding: 25px 15px; text-align: center; color: var(--text-color-light); font-size: 13px; display: block;">
+                    <div style="font-size: 32px; margin-bottom: 10px;">📁</div>
+                    <span data-i18n="media.select_chat_hint">Select a chat on the left to browse its media files, links,
+                        and surveys.</span>
+                </div>
+
+                <!-- 8 Categories Column (shown when chat is selected) -->
+                <div id="media-categories-view"
+                    style="display: none; padding: 12px 10px; flex-direction: column; gap: 4px;">
+                    <div class="media-cat-item" data-type="photos">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">🖼️</span>
+                            <span class="media-cat-count" id="cat-count-photos">0</span>
+                            <span class="media-cat-label" data-i18n="media.photos">Photos</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="videos">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">📹</span>
+                            <span class="media-cat-count" id="cat-count-videos">0</span>
+                            <span class="media-cat-label" data-i18n="media.videos">Videos</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="files">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">📎</span>
+                            <span class="media-cat-count" id="cat-count-files">0</span>
+                            <span class="media-cat-label" data-i18n="media.files">Files</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="audio">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">🎧</span>
+                            <span class="media-cat-count" id="cat-count-audio">0</span>
+                            <span class="media-cat-label" data-i18n="media.audio">Audios</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="voices">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">🎤</span>
+                            <span class="media-cat-count" id="cat-count-voices">0</span>
+                            <span class="media-cat-label" data-i18n="media.voices">Voice messages</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="links">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">🔗</span>
+                            <span class="media-cat-count" id="cat-count-links">0</span>
+                            <span class="media-cat-label" data-i18n="media.links">Links</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="surveys">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">📊</span>
+                            <span class="media-cat-count" id="cat-count-surveys">0</span>
+                            <span class="media-cat-label" data-i18n="media.surveys">Surveys</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                    <div class="media-cat-item" data-type="gifs">
+                        <div class="media-cat-left">
+                            <span class="media-cat-emoji">👾</span>
+                            <span class="media-cat-count" id="cat-count-gifs">0</span>
+                            <span class="media-cat-label" data-i18n="media.gifs">GIFs</span>
+                        </div>
+                        <span class="media-cat-arrow">›</span>
+                    </div>
+                </div>
+
+                <!-- Drilldown Detail View (Grid, List, Surveys) -->
+                <div id="media-detail-view" style="display: none; flex-direction: column; height: 100%;">
+                    <div class="media-detail-header"
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+                        <button id="media-detail-back-btn" class="secondary-btn" type="button"
+                            style="padding: 4px 8px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                            <span>←</span> <span data-i18n="media.back">Categories</span>
+                        </button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="media-detail-title" style="font-weight: 600; font-size: 13px;">🖼️ Photos</span>
+                            <button id="media-batch-transcribe-btn" class="action-btn" type="button"
+                                style="display: none; font-size: 11px; padding: 2px 7px;"
+                                data-i18n="whisper.batch_cat_btn" data-i18n-title="whisper.batch_btn_title"
+                                onclick="if(window.triggerBatchTranscribe && window.currentChatId) window.triggerBatchTranscribe(window.currentChatId);">
+                                🎙️ Transcribe All
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="media-detail-content" style="flex: 1; overflow-y: auto; padding: 10px;">
+                        <div id="media-gallery-grid" class="media-grid"></div>
+                        <div id="media-gallery-list" class="media-plain-list" style="display: none;"></div>
+                        <div id="media-gallery-surveys" class="media-surveys-container" style="display: none;"></div>
+                    </div>
+
+                    <div id="media-pagination" class="media-pagination"
+                        style="display: none; padding: 10px 14px; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); flex-shrink: 0;">
+                        <button id="media-prev-btn" class="secondary-btn" disabled data-i18n="media.newer">←
+                            Newer</button>
+                        <span id="media-page-indicator" style="font-size: 12px; color: var(--text-color-light);"
+                            data-i18n="media.page">Page 1</span>
+                        <button id="media-next-btn" class="secondary-btn" disabled data-i18n="media.older">Older
+                            →</button>
+                    </div>
+                </div>
+
+                <!-- Sticky Selection Bar at bottom of media panel -->
+                <div id="media-selection-bar" class="media-selection-bar" style="display: none;">
+                    <div class="media-sel-text"><strong id="media-sel-count">0</strong> <span
+                            data-i18n="media.selected">items selected</span></div>
+                    <div class="media-sel-btns">
+                        <button id="media-sel-cancel-btn" class="secondary-btn" type="button"
+                            data-i18n="btn.cancel">Cancel</button>
+                        <button id="media-sel-export-btn" class="primary-btn" type="button"
+                            data-i18n="btn.export">Export</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Export Manager -->
+            <div id="rs-export" class="rs-content"
+                style="display: none; padding: 14px 12px; flex-direction: column; height: 100%; overflow-y: auto;">
+                <div style="font-weight: 600; font-size: 13px; margin-bottom: 8px;" data-i18n="export.presets">Quick
+                    Presets</div>
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;">
+                    <button type="button" class="action-btn"
+                        style="text-align: left; padding: 6px 10px; font-size: 12px;"
+                        onclick="ExportManager.runExport({ chat_id: window.currentChatId, format: 'md', style: 'verbose', interval: 'single', range_mode: 'all', delivery: 'download' })"
+                        data-i18n="export.preset_full_md">📄 Full Markdown (.md)</button>
+                    <button type="button" class="action-btn"
+                        style="text-align: left; padding: 6px 10px; font-size: 12px;"
+                        onclick="ExportManager.runExport({ chat_id: window.currentChatId, format: 'md', style: 'compact', interval: 'single', range_mode: 'latest_days', latest_days: 7, delivery: 'download' })"
+                        data-i18n="export.preset_7d">⏱️ Last 7 Days (Compact)</button>
+                    <button type="button" class="action-btn"
+                        style="text-align: left; padding: 6px 10px; font-size: 12px;"
+                        onclick="ExportManager.runExport({ chat_id: window.currentChatId, format: 'md', style: 'verbose', interval: 'month', range_mode: 'all', delivery: 'download' })"
+                        data-i18n="export.preset_monthly">📦 Monthly Partitioned Archive (.zip)</button>
+                </div>
+
+                <button type="button" class="primary-btn"
+                    style="width: 100%; margin-bottom: 16px; padding: 8px; font-size: 12px;"
+                    onclick="ExportManager.openModal(window.currentChatId)" data-i18n="export.custom_btn">⚙️ Custom
+                    Export...</button>
+
+                <div
+                    style="font-weight: 600; font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <span data-i18n="export.history_title">Saved Exports History</span>
+                    <button type="button" class="secondary-btn" style="padding: 2px 6px; font-size: 10px;"
+                        onclick="ExportManager.loadChatExportsHistory()">🔄</button>
+                </div>
+                <div id="rs-export-history-list"
+                    style="border: 1px solid var(--border-color); border-radius: 6px; background: rgba(0,0,0,0.1); max-height: 250px; overflow-y: auto;">
+                    <div style="opacity: 0.6; padding: 8px; font-size: 12px;">Loading export snapshots...</div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Player modal -->
+    <div id="player-modal" class="modal-window" style="display: none;">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="player.title">Media Player</span>
+            <span class="modal-close" onclick="closePlayer()">×</span>
+        </div>
+        <div class="modal-content">
+            <video id="modal-video" controls style="display: none; max-width: 100%; max-height: 80vh;"></video>
+            <audio id="modal-audio" controls style="display: none; width: 100%;"></audio>
+        </div>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-modal" class="modal-overlay" style="display:none;">
+        <div class="settings-modal-content">
+            <div class="settings-modal-header">
+                <h3 data-i18n="settings.title" style="margin: 0;">⚙️ Settings</h3>
+                <button type="button" class="modal-close" onclick="SettingsModal.close()"
+                    style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-color); line-height: 1;">✕</button>
+            </div>
+
+            <!-- Navigation Tabs for General / Advanced -->
+            <div class="settings-nav-tabs">
+                <button type="button" class="settings-tab-btn active" id="settings-tab-btn-general"
+                    onclick="SettingsModal.switchTab('general')">
+                    <span>⚙️</span> <span data-i18n="settings.tab_general">General</span>
+                </button>
+                <button type="button" class="settings-tab-btn" id="settings-tab-btn-advanced"
+                    onclick="SettingsModal.switchTab('advanced')">
+                    <span>🛠️</span> <span data-i18n="settings.tab_advanced">Advanced</span>
+                </button>
+            </div>
+
+            <!-- Tab 1: General Settings (Scrollable Container) -->
+            <div id="settings-view-general" class="settings-view-panel">
+                <!-- Language selector in Settings -->
+                <div class="setting-section">
+                    <label data-i18n="settings.language">Language / Язык</label>
+                    <select id="settings-lang-select" style="width: 100%; margin-bottom: 8px;"
+                        onchange="I18N.setLang(this.value)">
+                        <option value="en">English</option>
+                        <option value="ru">Русский</option>
+                    </select>
+                    <div style="font-size: 11px; color: var(--text-color-light); line-height: 1.4;"
+                        data-i18n="settings.lang_notice">
+                        Default language detected from browser. You can change it anytime here.
+                    </div>
+                </div>
+
+                <div class="setting-section">
+                    <label data-i18n="settings.palette">Color Palette</label>
+                    <select id="theme-palette-select" style="width: 100%; margin-bottom: 15px;">
+                        <optgroup label="Presets" data-i18n-label="settings.presets">
+                            <option value="default" data-i18n="settings.palette_default">Default (Classic)</option>
+                            <option value="rose" data-i18n="settings.palette_rose">Rose (Soft Pink)</option>
+                            <option value="mint" data-i18n="settings.palette_mint">Mint (Soft Teal)</option>
+                            <option value="lavender" data-i18n="settings.palette_lavender">Lavender (Soft Purple)
+                            </option>
+                            <option value="sand" data-i18n="settings.palette_sand">Sand (Soft Yellow)</option>
+                            <option value="dracula" data-i18n="settings.palette_dracula">Dracula (Dark Pink/Purple)
+                            </option>
+                            <option value="nord" data-i18n="settings.palette_nord">Nord (Arctic Cyan)</option>
+                            <option value="midnight" data-i18n="settings.palette_midnight">Midnight (Deep Indigo)
+                            </option>
+                            <option value="gruvbox" data-i18n="settings.palette_gruvbox">Gruvbox (Warm Dark)</option>
+                        </optgroup>
+                        <optgroup label="Other" data-i18n-label="settings.other">
+                            <option value="custom" data-i18n="settings.custom_color">Custom Color</option>
+                        </optgroup>
+                    </select>
+                    <div style="display: none;">
+                        <label data-i18n="settings.custom_bubble">Custom bubble/accent color</label>
+                        <input type="color" id="custom-bubble-color" value="#a1a1aa"
+                            style="width: 100%; height: 40px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; padding: 2px;">
+                    </div>
+                </div>
+
+                <div class="setting-section">
+                    <label data-i18n="settings.chat_bg">Chat Background</label>
+                    <div id="bg-drop-zone" class="drop-zone">
+                        <span class="drop-zone-icon">🖼️</span>
+                        <span data-i18n="settings.drop_hint">Drag an image here or click to browse</span>
+                        <input type="file" id="bg-file-input" accept="image/*" hidden>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label data-i18n="settings.blur">Background Blur</label>
+                        <input type="range" id="bg-blur-slider" min="0" max="20" step="1" value="0"
+                            style="width: 100%;">
+                    </div>
+                    <div style="margin-top: 10px; margin-bottom: 15px;">
+                        <label data-i18n="settings.dim">Background Dim (brightness)</label>
+                        <input type="range" id="bg-dim-slider" min="0.1" max="1.0" step="0.05" value="1.0"
+                            style="width: 100%; direction: rtl;">
+                    </div>
+
+                    <button id="remove-bg-btn" class="danger-btn" data-i18n="settings.remove_bg">🗑️ Remove
+                        background</button>
+                </div>
+
+                <div class="settings-version"
+                    style="margin-top: 15px; margin-bottom: 10px; text-align: center; font-size: 12px; color: var(--text-color-light);">
+                    v{{ version }} · <a href="#" id="check-update-link" style="color: var(--link-color);"
+                        data-i18n="update.check">Check for updates</a>
+                </div>
+            </div>
+
+            <!-- Tab 2: Advanced Settings (Scrollable Container) -->
+            <div id="settings-view-advanced" class="settings-view-panel" style="display: none;">
+                <!-- Collapsible: Speech-to-Text (Whisper) section -->
+                <div class="settings-collapsible-card" id="settings-whisper-card">
+                    <div class="settings-collapsible-header"
+                        onclick="SettingsModal.toggleSection('settings-whisper-card')">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🎙️</span>
+                            <span style="font-weight: 600; font-size: 13px;"
+                                data-i18n="settings.whisper_title">Speech-to-Text (Whisper)</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="whisper-hardware-badge"
+                                style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(33, 150, 243, 0.15); color: #2196f3; font-weight: 500;">Detecting...</span>
+                            <span class="collapsible-chevron">▼</span>
+                        </div>
+                    </div>
+                    <div class="settings-collapsible-body">
+                        <div style="margin-bottom: 12px;">
+                            <label
+                                style="font-size: 11px; color: var(--text-color-light); display: block; margin-bottom: 4px;">Storage
+                                Directory (optional custom model path):</label>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="whisper-storage-path"
+                                    placeholder="Default (~/.cache/huggingface/hub)"
+                                    style="flex: 1; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg-alt); color: var(--text-color); font-size: 12px;">
+                                <button type="button" class="action-btn" id="whisper-save-path-btn"
+                                    style="padding: 6px 10px; font-size: 11px;">Save</button>
+                            </div>
+                        </div>
+                        <div
+                            style="font-size: 11px; color: var(--text-color-light); margin-bottom: 6px; font-weight: 500;">
+                            Installed & Available Models:</div>
+                        <div id="whisper-model-catalog"
+                            style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+                            <!-- Model cards injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collapsible: Non-Destructive Database Merger Section -->
+                <div class="settings-collapsible-card" id="settings-db-merge-card">
+                    <div class="settings-collapsible-header"
+                        onclick="SettingsModal.toggleSection('settings-db-merge-card')">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🔀</span>
+                            <span style="font-weight: 600; font-size: 13px;"
+                                data-i18n="settings.db_merge_title">Multi-Machine Database Merger</span>
+                        </div>
+                        <span class="collapsible-chevron">▶</span>
+                    </div>
+                    <div class="settings-collapsible-body" style="display: none;">
+                        <div
+                            style="font-size: 11px; color: var(--text-color-light); line-height: 1.4; margin-bottom: 8px;">
+                            Atomically merge an external SQLite database into this installation. Automatic pre-merge
+                            snapshot backup, Anti-Interference user preservation, and FTS5 synchronization.
+                        </div>
+                        <input type="text" id="merge-db-source-path"
+                            placeholder="Path to source .db (e.g. backup_seed.db)"
+                            style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg-alt); color: var(--text-color); font-size: 12px; margin-bottom: 6px;">
+                        <input type="text" id="merge-media-source-path"
+                            placeholder="Path to source media_backup (optional)"
+                            style="width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg-alt); color: var(--text-color); font-size: 12px; margin-bottom: 8px;">
+                        <button type="button" class="action-btn" id="merge-db-trigger-btn"
+                            style="width: 100%; padding: 7px; font-size: 12px; background: #3b82f6; color: white;">🔀
+                            Merge Database Non-Destructively</button>
+                        <div id="merge-db-progress-box" style="display: none; margin-top: 10px; padding: 10px; background: var(--panel-bg-alt); border: 1px solid var(--border-color); border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 6px;">
+                                <span id="merge-db-stage-label" style="font-weight: 600; color: #3b82f6;">Initializing merge...</span>
+                                <span id="merge-db-percentage" style="font-weight: 700; color: var(--text-color);">0%</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden; margin-bottom: 6px;">
+                                <div id="merge-db-progress-bar" style="width: 0%; height: 100%; background: #3b82f6; transition: width 0.25s ease;"></div>
+                            </div>
+                            <div id="merge-db-detail-label" style="font-size: 10.5px; color: var(--text-color-light); font-family: monospace; line-height: 1.3; word-break: break-all;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storage & Archive Maintenance Tools -->
+                <div class="settings-collapsible-card" id="settings-maintenance-tools-card">
+                    <div class="settings-collapsible-header"
+                        onclick="SettingsModal.toggleSection('settings-maintenance-tools-card')">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🛠️</span>
+                            <span style="font-weight: 600; font-size: 13px;"
+                                data-i18n="archive.tools_maintenance_title">Storage & Archive Maintenance Tools</span>
+                        </div>
+                        <span class="collapsible-chevron">▶</span>
+                    </div>
+                    <div class="settings-collapsible-body" style="display: none;">
+                        <div style="margin-bottom: 8px;">
+                            <label style="font-size: 11px; opacity: 0.8; display: block; margin-bottom: 4px;">Select
+                                Maintenance Utility:</label>
+                            <select id="tools-select"
+                                style="width: 100%; padding: 6px; font-size: 12px; background: var(--panel-bg-alt); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">
+                                <option value="dedup_hardlinks">NTFS Hardlink Deduplicator (dedup_hardlinks.py)</option>
+                                <option value="import_tg_export">Import Telegram Desktop JSON (import_tg_export.py)
+                                </option>
+                            </select>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <label
+                                style="font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" id="tools-execute-check">
+                                <span style="font-weight: 600; color: #ef4444;" data-i18n="archive.tools_execute">Commit
+                                    Changes (Leave unchecked for Dry-Run)</span>
+                            </label>
+                            <button type="button" id="tools-run-btn" class="action-btn"
+                                style="padding: 5px 12px; font-size: 12px; background: var(--link-color); color: white;"
+                                data-i18n="archive.tools_run_btn">▶️ Run Tool</button>
+                        </div>
+                        <pre id="tools-log-box"
+                            style="display: none; background: #111; color: #00ff66; padding: 10px; border-radius: 6px; font-size: 11px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; font-family: monospace;"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="settings-modal-footer">
+                <button class="close-modal-btn" onclick="SettingsModal.close()" data-i18n="btn.close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Modal (Tabbed Interactive Guide) -->
+    <div id="faq-modal" class="modal-overlay" style="display:none;">
+        <div class="settings-modal-content" style="max-width: 680px; width: 92%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin: 0;" data-i18n="faq.title">👋 Welcome & Quick Guide</h3>
+                <button type="button" class="modal-close" onclick="FAQModal.close()"
+                    style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-color-light); margin-top: 0; margin-bottom: 12px;"
+                data-i18n="faq.subtitle">Telegram Backup & Viewer — Complete Feature Tour</p>
+
+            <div class="faq-guide-tabs">
+                <button type="button" class="faq-tab-btn active" onclick="FAQModal.switchTab('nav', this)"
+                    data-i18n="faq.tab_nav">🧭 Navigation</button>
+                <button type="button" class="faq-tab-btn" onclick="FAQModal.switchTab('backup', this)"
+                    data-i18n="faq.tab_backup">📥 Archiver & Recovery</button>
+                <button type="button" class="faq-tab-btn" onclick="FAQModal.switchTab('live', this)"
+                    data-i18n="faq.tab_live">📡 Live Monitor & Churn</button>
+                <button type="button" class="faq-tab-btn" onclick="FAQModal.switchTab('whisper', this)"
+                    data-i18n="faq.tab_whisper">🎙️ Whisper & Forensics</button>
+                <button type="button" class="faq-tab-btn" onclick="FAQModal.switchTab('shortcuts', this)"
+                    data-i18n="faq.tab_shortcuts">⌨️ Shortcuts & Export</button>
+            </div>
+
+            <div id="faq-tab-nav" class="faq-tab-pane" data-i18n-html="faq.nav_content"></div>
+            <div id="faq-tab-backup" class="faq-tab-pane" style="display: none;" data-i18n-html="faq.backup_content">
+            </div>
+            <div id="faq-tab-live" class="faq-tab-pane" style="display: none;" data-i18n-html="faq.live_content"></div>
+            <div id="faq-tab-whisper" class="faq-tab-pane" style="display: none;" data-i18n-html="faq.whisper_content">
+            </div>
+            <div id="faq-tab-shortcuts" class="faq-tab-pane" style="display: none;"
+                data-i18n-html="faq.shortcuts_content"></div>
+
+            <button class="start-btn" style="width: 100%; margin-top: 18px;" onclick="FAQModal.close()"
+                data-i18n="faq.ok">Got it, thanks!</button>
+        </div>
+    </div>
+
+    <!-- Refresh Hint / Explanatory Modal -->
+    <div id="refresh-hint-modal" class="modal-overlay" style="display:none;">
+        <div class="settings-modal-content" style="max-width: 520px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>ℹ️</span> <span data-i18n="refresh_modal.title">Chat List Refresh Modes</span>
+                </h3>
+                <button class="modal-close" onclick="if(window.RefreshHintModal) window.RefreshHintModal.close();"
+                    style="background:none; border:none; color:var(--text-color); font-size:20px; cursor:pointer; padding: 0 4px;">✕</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 1.5;">
+                <!-- Quick Refresh Card -->
+                <div class="card-style" style="padding: 12px; border-left: 4px solid #3b82f6; margin: 0;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-color);"
+                        data-i18n="refresh_modal.quick_title">
+                        ⚡ Quick Refresh (~1s)
+                    </div>
+                    <p style="margin: 0 0 6px; color: var(--text-color);" data-i18n="refresh_modal.quick_desc">
+                        Queries Telegram servers for recent dialogs, exempting all already-cached chats from heavy
+                        message-counting queries. Discovers newly created chats, newly joined channels/groups, and title
+                        changes in ~1 second.
+                    </p>
+                    <div style="font-size: 12px; color: var(--text-color-light);" data-i18n="refresh_modal.quick_use">
+                        💡 Best used: daily or routine checks to quickly detect newly added chats or renamed channels.
+                    </div>
+                </div>
+
+                <!-- Full Refresh Card -->
+                <div class="card-style" style="padding: 12px; border-left: 4px solid #10b981; margin: 0;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-color);"
+                        data-i18n="refresh_modal.full_title">
+                        🔄 Full Telegram Refresh (15–30s)
+                    </div>
+                    <p style="margin: 0 0 6px; color: var(--text-color);" data-i18n="refresh_modal.full_desc">
+                        Performs a deep scan of all dialogs across your entire Telegram account history from scratch.
+                        Re-checks exact server message counts for every chat, supergroup migrations, and wallpapers.
+                    </p>
+                    <div style="font-size: 12px; color: var(--text-color-light);" data-i18n="refresh_modal.full_safe">
+                        🛡️ Non-destructive: never alters or deletes your archived messages, database records, or
+                        downloaded media.
+                    </div>
+                </div>
+
+                <!-- Caveats & Incomplete Chatlist Pivot Card -->
+                <div class="card-style"
+                    style="padding: 12px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.07); margin: 0;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px; color: #d97706;"
+                        data-i18n="refresh_modal.caveats_title">
+                        ⚠️ Important Caveats & Edge Cases
+                    </div>
+                    <ul
+                        style="margin: 0 0 10px; padding-left: 18px; color: var(--text-color); display: flex; flex-direction: column; gap: 4px;">
+                        <li data-i18n="refresh_modal.caveat_quick_miss">Quick Refresh inspects recent dialogs. If you
+                            joined an older, completely inactive chat with no recent messages, it might be further down
+                            in history and require a Full Refresh.</li>
+                        <li data-i18n="refresh_modal.caveat_empty_cache">First time run: If no local cache exists yet,
+                            Quick Refresh automatically falls back to an initial full scan.</li>
+                        <li data-i18n="refresh_modal.caveat_missing_chat">Missing a very old or inactive chat? Run a
+                            Full Refresh to scan your complete account history.</li>
+                    </ul>
+
+                    <div
+                        style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                        <span style="font-size: 12px; color: var(--text-color-light);"
+                            data-i18n="refresh_modal.pivot_hint">Need a deep scan of your entire account history?</span>
+                        <button id="modal-trigger-full-refresh-btn" class="action-btn" type="button"
+                            style="padding: 7px 12px; font-size: 12px; font-weight: 600; background: var(--primary-color, #2481cc); color: #fff; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+                            <span>🔄</span> <span data-i18n="refresh_modal.pivot_btn">Run Full Telegram Refresh
+                                Now</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="close-modal-btn" onclick="if(window.RefreshHintModal) window.RefreshHintModal.close();"
+                style="margin-top: 16px; width: 100%;" data-i18n="btn.close">Close</button>
+        </div>
+    </div>
+
+    <!-- Chat Reload Modal (Fast Update vs Forced O(1) Gap Reconcile) -->
+    <div id="chat-reload-modal" class="modal-overlay"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 3000; align-items: center; justify-content: center;">
+        <div class="chat-manage-content" style="width: 440px; max-width: 92vw;">
+            <h3
+                style="display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 17px; color: var(--text-color);">
+                <span>🔄</span> <span id="reload-modal-title">Update Archive</span>
+            </h3>
+            <p id="reload-modal-chatname-label"
+                style="font-size: 14px; font-weight: 600; color: var(--text-color); margin-bottom: 8px;">
+                «<span id="reload-modal-chatname"></span>»
+            </p>
+            <div id="reload-modal-warning"
+                style="display: none; padding: 10px 12px; border-radius: 8px; background: rgba(255, 152, 0, 0.12); border: 1px solid rgba(255, 152, 0, 0.35); color: #ffa726; font-size: 12px; line-height: 1.45; margin-bottom: 14px;">
+                ⚠️ <b>O(1) gap scan was already performed for this chat.</b><br>
+                Unless older history was recently deleted or restored on Telegram, running a deep gap scan again may not
+                be of use and will only waste time.
+            </div>
+            <p style="font-size: 13px; color: var(--text-color-light); margin: 0 0 16px; line-height: 1.5;">
+                Select update mode:
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                <button type="button" id="reload-action-fast-btn" class="action-btn"
+                    style="padding: 10px 14px; text-align: left; background: var(--secondary-bg, #2b303c); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 13px;">⚡ Fast Update Only</div>
+                        <div style="font-size: 11px; opacity: 0.75;">Quickly catches up with latest messages since last
+                            backup</div>
+                    </div>
+                    <span style="font-size: 16px;">▶️</span>
+                </button>
+                <button type="button" id="reload-action-full-btn" class="action-btn"
+                    style="padding: 10px 14px; text-align: left; background: rgba(36, 129, 204, 0.12); border: 1px solid var(--accent-color, #2481cc); border-radius: 8px; color: var(--text-color); cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 13px; color: var(--accent-color, #2997e0);">🔍 Fast
+                            Update + Forced O(1) Gap Scan</div>
+                        <div style="font-size: 11px; opacity: 0.75;">Syncs latest messages, then probes 500-msg blocks
+                            to reconcile any missing gaps</div>
+                    </div>
+                    <span style="font-size: 16px;">⚡</span>
+                </button>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="button" id="reload-cancel-btn" class="secondary-btn"
+                    style="padding: 6px 16px;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat manage modal (delete) -->
+    <div id="chat-manage-modal">
+        <div class="chat-manage-content">
+            <h3 id="manage-modal-title" data-i18n="manage.delete_title">🗑️ Delete Chat Archive</h3>
+            <p id="manage-modal-body">
+                <span data-i18n="manage.delete_body">This action is irreversible! All messages and media files stored
+                    for this chat will be deleted permanently.</span><br><br>
+                <span data-i18n="manage.confirm_prompt">To confirm deletion, type the exact chat name:</span>
+                «<span id="manage-modal-chatname"></span>»
+            </p>
+            <input type="text" id="manage-confirm-input" placeholder="Chat name..."
+                data-i18n-placeholder="manage.name_placeholder" autocomplete="off">
+            <div class="chat-manage-actions">
+                <button id="manage-cancel-btn" data-i18n="btn.cancel">Cancel</button>
+                <button id="manage-confirm-delete-btn" disabled data-i18n="btn.delete">🗑️ Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-Chat Settings Popover Card (Redesigned 440px) -->
+    <div id="chat-settings-popover">
+        <div class="csp-header">
+            <h4 id="chat-settings-title" data-i18n="archive.chat_settings">Settings</h4>
+            <button type="button" onclick="document.getElementById('chat-settings-popover').style.display='none'"
+                style="background:none; border:none; color:var(--text-color); font-size:16px; cursor:pointer;">✕</button>
+        </div>
+
+        <div class="csp-summary-strip">
+            <span id="csp-summary-text">Loading chat summary...</span>
+            <span id="csp-summary-status" style="font-weight:600; color:var(--link-color);"></span>
+        </div>
+
+        <div class="csp-tabs-bar">
+            <button type="button" class="csp-tab-btn active" data-tab="media"
+                onclick="switchChatSettingsTab('media', this)" data-i18n="archive.tab_media">📦 Media & Caps</button>
+            <button type="button" class="csp-tab-btn" data-tab="scope" onclick="switchChatSettingsTab('scope', this)"
+                data-i18n="archive.tab_scope">⏱️ Scope & Tracking</button>
+            <button type="button" class="csp-tab-btn" data-tab="rules" onclick="switchChatSettingsTab('rules', this)"
+                data-i18n="archive.tab_rules">🛡️ Rules & Tools</button>
+        </div>
+
+        <div class="csp-body">
+            <!-- TAB 1: Media & Limits -->
+            <div id="csp-tab-media" class="csp-tab-panel">
+                <div class="csp-section-card accent-blue">
+                    <div style="font-size:11px; font-weight:600; margin-bottom:8px; opacity:0.8;">Allowed Media Types &
+                        Max File Size:</div>
+                    <div class="csp-row">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-photos-enabled">
+                            <span data-i18n="archive.photos">Photos</span>
+                        </label>
+                        <input type="number" id="cs-photos-max" class="csp-size-input" placeholder="MB"
+                            data-i18n-placeholder="archive.max_mb">
+                    </div>
+                    <div class="csp-row">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-videos-enabled">
+                            <span data-i18n="archive.videos">Videos</span>
+                        </label>
+                        <input type="number" id="cs-videos-max" class="csp-size-input" placeholder="MB"
+                            data-i18n-placeholder="archive.max_mb">
+                    </div>
+                    <div class="csp-row">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-voice-enabled">
+                            <span data-i18n="archive.voice">Voice</span>
+                        </label>
+                        <input type="number" id="cs-voice-max" class="csp-size-input" placeholder="MB"
+                            data-i18n-placeholder="archive.max_mb">
+                    </div>
+                    <div class="csp-row">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-video_notes-enabled">
+                            <span data-i18n="archive.video_notes">Video Notes</span>
+                        </label>
+                        <input type="number" id="cs-video_notes-max" class="csp-size-input" placeholder="MB"
+                            data-i18n-placeholder="archive.max_mb">
+                    </div>
+                    <div class="csp-row">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-documents-enabled">
+                            <span data-i18n="archive.documents">Documents</span>
+                        </label>
+                        <input type="number" id="cs-documents-max" class="csp-size-input" placeholder="MB"
+                            data-i18n-placeholder="archive.max_mb">
+                    </div>
+                    <div class="csp-row">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-custom_emoji-enabled" checked>
+                            <span data-i18n="archive.custom_emoji">Custom Emojis</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="cs-estimate-badge" title="Click to inspect media assets and missing items"
+                    style="cursor:pointer; padding:6px 8px; background:rgba(36,129,204,0.12); border:1px solid rgba(36,129,204,0.3); border-radius:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>⚡ Missing eligible:</span>
+                    <span style="font-weight:600;"><span id="cs-est-count">0</span> files (<span id="cs-est-size">0
+                            MB</span>)</span>
+                </div>
+
+                <div id="cs-excluded-badge" title="Click to inspect media assets and rules"
+                    style="cursor:pointer; margin-top:4px; padding:6px 8px; background:rgba(233,30,99,0.12); border:1px solid rgba(233,30,99,0.3); border-radius:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+                    <span data-i18n="archive.excluded_by_rules">🚫 Excluded by rules:</span>
+                    <span style="font-weight:600; color:#e91e63;"><span id="cs-excluded-count">0</span> files (<span
+                            id="cs-excluded-size">0 MB</span>)</span>
+                </div>
+            </div>
+
+            <!-- TAB 2: Scope & Tracking -->
+            <div id="csp-tab-scope" class="csp-tab-panel" style="display:none;">
+                <div class="csp-section-card accent-purple">
+                    <div style="font-weight:600; margin-bottom:6px; font-size:11px; opacity:0.85;"
+                        data-i18n="export.range">Time Period Range:</div>
+                    <label
+                        style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; cursor:pointer;">
+                        <input type="radio" name="cs-range-mode" value="all" id="cs-range-all" checked>
+                        <span data-i18n="export.all_time">All messages</span>
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; cursor:pointer;">
+                        <input type="radio" name="cs-range-mode" value="latest_days" id="cs-range-latest">
+                        <span>Latest</span>
+                        <input type="number" id="cs-range-latest-days" value="30" min="1" max="3650"
+                            style="width:45px; padding:1px; font-size:11px;">
+                        <span>days</span>
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; cursor:pointer;">
+                        <input type="radio" name="cs-range-mode" value="oldest_days" id="cs-range-oldest">
+                        <span>Oldest</span>
+                        <input type="number" id="cs-range-oldest-days" value="30" min="1" max="3650"
+                            style="width:45px; padding:1px; font-size:11px;">
+                        <span>days</span>
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; cursor:pointer;">
+                        <input type="radio" name="cs-range-mode" value="custom_range" id="cs-range-custom">
+                        <span data-i18n="export.custom_range">Custom date range</span>
+                    </label>
+                    <div id="cs-custom-date-box"
+                        style="display:none; font-size:11px; margin-left:18px; margin-top:4px;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                            <span style="width:36px; opacity:0.75; font-size:10px;">From:</span>
+                            <input type="date" id="cs-range-start-date" style="padding:1px; font-size:11px; flex:1;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="width:36px; opacity:0.75; font-size:10px;">To:</span>
+                            <input type="date" id="cs-range-end-date" style="padding:1px; font-size:11px; flex:1;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Linked Discussion Group Card -->
+                <div id="cs-linked-chat-container" class="csp-section-card accent-blue" style="display: none;">
+                    <label style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <input type="checkbox" id="cs-skip-linked"> <span style="font-size:11px; font-weight:600;"
+                            data-i18n="archive.skip_linked">Do not download linked discussion chat</span>
+                    </label>
+                    <div id="cs-linked-media-options"
+                        style="font-size: 11px; margin-left: 8px; margin-top: 4px; border-left: 2px solid var(--link-color); padding-left: 8px;">
+                        <div style="font-weight:600; margin-bottom:4px; opacity:0.8;"
+                            data-i18n="archive.linked_media_limits">Linked Chat Media Limits:</div>
+                        <label style="display:flex; justify-content:space-between; margin-bottom: 3px;">
+                            <span><input type="checkbox" id="cs-linked-photos-enabled"> <span
+                                    data-i18n="archive.photos">Photos</span></span>
+                            <input type="number" id="cs-linked-photos-max" class="csp-size-input" placeholder="MB">
+                        </label>
+                        <label style="display:flex; justify-content:space-between; margin-bottom: 3px;">
+                            <span><input type="checkbox" id="cs-linked-videos-enabled"> <span
+                                    data-i18n="archive.videos">Videos</span></span>
+                            <input type="number" id="cs-linked-videos-max" class="csp-size-input" placeholder="MB">
+                        </label>
+                        <label style="display:flex; justify-content:space-between; margin-bottom: 3px;">
+                            <span><input type="checkbox" id="cs-linked-voice-enabled"> <span
+                                    data-i18n="archive.voice">Voice</span></span>
+                            <input type="number" id="cs-linked-voice-max" class="csp-size-input" placeholder="MB">
+                        </label>
+                        <label style="display:flex; justify-content:space-between; margin-bottom: 3px;">
+                            <span><input type="checkbox" id="cs-linked-video_notes-enabled"> <span
+                                    data-i18n="archive.video_notes">Video Notes</span></span>
+                            <input type="number" id="cs-linked-video_notes-max" class="csp-size-input" placeholder="MB">
+                        </label>
+                        <label style="display:flex; justify-content:space-between; margin-bottom: 3px;">
+                            <span><input type="checkbox" id="cs-linked-documents-enabled"> <span
+                                    data-i18n="archive.documents">Documents</span></span>
+                            <input type="number" id="cs-linked-documents-max" class="csp-size-input" placeholder="MB">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Subscriber Churn Tracking Card -->
+                <div class="csp-section-card accent-green">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label class="csp-switch-label">
+                            <input type="checkbox" id="cs-track-participants-check">
+                            <span style="font-weight:600; font-size:11px;" data-i18n="archive.track_subscribers">Track
+                                Subscriber Joins/Leaves</span>
+                        </label>
+                        <button type="button" class="secondary-btn" style="padding:2px 6px; font-size:10px;"
+                            onclick="if(window.ParticipantsManager) ParticipantsManager.openModal(document.getElementById('chat-settings-popover')?.dataset.chatId)">👥
+                            Log</button>
+                    </div>
+                </div>
+
+                <!-- Custom Folders Card -->
+                <div class="csp-section-card accent-cyan" style="margin-top: 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; font-size:11px;">📁 Chat Folders</span>
+                        <button type="button" class="secondary-btn" style="padding:2px 6px; font-size:10px;"
+                            onclick="if(window.FoldersManager) FoldersManager.openModal()">Manage</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Rules & Diagnostics -->
+            <div id="csp-tab-rules" class="csp-tab-panel" style="display:none;">
+                <div class="csp-section-card accent-amber">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-weight:600; font-size:11px; opacity:0.85;"
+                            data-i18n="archive.user_rules_title">🤖 Bot & Sender Exclusions:</span>
+                        <button type="button" id="cs-add-user-rule-btn"
+                            style="background:none; border:1px solid var(--border-color); color:var(--link-color); border-radius:4px; font-size:10px; padding:2px 6px; cursor:pointer;"
+                            data-i18n="archive.add_rule">+ Add Rule</button>
+                    </div>
+                    <div id="cs-user-rules-list"
+                        style="display:flex; flex-direction:column; gap:4px; max-height:100px; overflow-y:auto; font-size:11px;">
+                        <span style="opacity:0.6; font-size:10px;" data-i18n="archive.no_rules">No exclusion rules
+                            configured.</span>
+                    </div>
+                </div>
+
+                <button id="cs-batch-transcribe-btn" type="button" class="action-btn"
+                    style="width:100%; margin-bottom:6px; font-size:11px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:var(--text-color); cursor:pointer;"
+                    data-i18n="whisper.batch_btn_text"
+                    onclick="const cid = document.getElementById('chat-settings-popover')?.dataset.chatId || window.currentChatId; if(window.triggerBatchTranscribe) window.triggerBatchTranscribe(cid);">
+                    🎙️ Transcribe Audio Messages (Mass STT)
+                </button>
+                <button id="cs-inspect-assets-btn" type="button" class="action-btn"
+                    style="width:100%; margin-bottom:6px; font-size:11px; background:var(--secondary-bg, #2b303c); border:1px solid var(--border-color); color:var(--text-color); cursor:pointer;">🔍
+                    Inspect Media Assets</button>
+                <button id="cs-reconcile-gaps-btn" type="button" class="action-btn"
+                    style="width:100%; font-size:11px; background:rgba(36,129,204,0.15); border:1px solid var(--accent-color, #2481cc); color:var(--text-color); cursor:pointer;"
+                    title="Verify and reconcile message history gaps via O(1) 500-message block probes">⚡ O(1) Gap
+                    Reconcile</button>
+            </div>
+        </div>
+
+        <div class="csp-footer">
+            <button id="cs-reset-btn" class="secondary-btn" style="padding:4px 10px; font-size:11px;"
+                data-i18n="archive.use_global">Use Global</button>
+            <button id="cs-save-btn" class="primary-btn" style="padding:4px 14px; font-size:11px;"
+                data-i18n="archive.save">Save</button>
+        </div>
+    </div>
+
+    <!-- Add / Edit User Exclusion Rule Modal -->
+    <div id="modal-user-rule" class="user-modal-overlay"
+        style="display: none; z-index: 4100; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center;">
+        <div class="user-modal-dialog"
+            style="background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; width: 90%; max-width: 420px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="user-modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border-color);">
+                <h3 id="user-rule-modal-title" style="margin: 0; font-size: 14px; font-weight: 600;">🚫 Exclude Media
+                    from User / Bot</h3>
+                <button class="user-modal-close"
+                    onclick="document.getElementById('modal-user-rule').style.display='none'"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <div style="padding: 16px; font-size: 12px; display: flex; flex-direction: column; gap: 10px;">
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 4px;">Select Sender / Bot:</label>
+                    <select id="user-rule-sender-select"
+                        style="width: 100%; padding: 6px; font-size: 12px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <option value="">-- Choose Bot or User --</option>
+                    </select>
+                </div>
+                <div style="font-size: 11px; opacity: 0.7;">Or enter manual User ID / Bot ID:</div>
+                <input type="text" id="user-rule-manual-id" placeholder="User ID (e.g. 123456789)"
+                    style="width: 100%; padding: 6px; font-size: 12px; box-sizing: border-box; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 4px;">Exclusion Mode:</label>
+                    <div style="display: flex; gap: 12px;">
+                        <label style="cursor: pointer;"><input type="radio" name="user-rule-mode" value="exclude_all"
+                                checked> Exclude ALL media</label>
+                        <label style="cursor: pointer;"><input type="radio" name="user-rule-mode" value="custom"> Custom
+                            per type</label>
+                    </div>
+                </div>
+
+                <div id="user-rule-custom-box"
+                    style="display: none; padding: 8px; border: 1px dashed var(--border-color); border-radius: 6px; background: rgba(255,255,255,0.02);">
+                    <div style="font-weight: 600; margin-bottom: 6px;">Check types to exclude or set custom max size:
+                    </div>
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span><input type="checkbox" id="ur-photos-exclude" checked> Exclude Photos</span>
+                        <span>Limit: <input type="number" id="ur-photos-max" style="width: 45px; padding: 1px;"
+                                placeholder="MB"></span>
+                    </label>
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span><input type="checkbox" id="ur-videos-exclude" checked> Exclude Videos</span>
+                        <span>Limit: <input type="number" id="ur-videos-max" style="width: 45px; padding: 1px;"
+                                placeholder="MB"></span>
+                    </label>
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span><input type="checkbox" id="ur-voice-exclude"> Exclude Voice</span>
+                        <span>Limit: <input type="number" id="ur-voice-max" style="width: 45px; padding: 1px;"
+                                placeholder="MB"></span>
+                    </label>
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span><input type="checkbox" id="ur-video_notes-exclude"> Exclude Video Notes</span>
+                        <span>Limit: <input type="number" id="ur-video_notes-max" style="width: 45px; padding: 1px;"
+                                placeholder="MB"></span>
+                    </label>
+                    <label style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                        <span><input type="checkbox" id="ur-documents-exclude"> Exclude Documents</span>
+                        <span>Limit: <input type="number" id="ur-documents-max" style="width: 45px; padding: 1px;"
+                                placeholder="MB"></span>
+                    </label>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+                    <button type="button" class="secondary-btn"
+                        onclick="document.getElementById('modal-user-rule').style.display='none'"
+                        style="padding: 6px 12px; font-size: 12px;">Cancel</button>
+                    <button type="button" id="user-rule-save-btn" class="action-btn"
+                        style="padding: 6px 14px; font-size: 12px; font-weight: 600;">Save Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-Chat Settings Download Prompt Modal -->
+    <div id="chat-settings-download-modal" class="modal-overlay" style="display:none; z-index:4000;">
+        <div class="settings-modal-content" style="max-width:380px; text-align:center; padding:20px;">
+            <h3 style="margin-top:0; margin-bottom:12px; font-size:16px;">💾 Settings Saved</h3>
+            <p id="cs-modal-desc"
+                style="font-size:13px; color:var(--text-color-light); margin-bottom:20px; line-height:1.5;">
+                Newly eligible media found: <strong id="cs-modal-summary">0 files (~0 MB)</strong>.<br>Would you like to
+                download missing media now?
+            </p>
+            <div style="display:flex; justify-content:center; gap:10px;">
+                <button id="cs-modal-download-now-btn" class="action-btn"
+                    style="padding:8px 16px; font-size:13px; font-weight:600;">⚡ Download Now</button>
+                <button id="cs-modal-only-save-btn" class="secondary-btn" style="padding:8px 16px; font-size:13px;">Only
+                    Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Chat Export Modal -->
+    <div id="chat-export-modal" class="modal-overlay" style="display:none; z-index:4200;">
+        <div class="settings-modal-content" style="max-width: 540px; width: 95%;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                <h3 id="export-modal-title" style="margin: 0;" data-i18n="export.title">📤 Export Chat</h3>
+                <button type="button" class="modal-close" onclick="ExportManager.closeModal()"
+                    style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+                <!-- Range Section -->
+                <div class="csp-section-card accent-blue">
+                    <div style="font-weight: 600; margin-bottom: 6px;" data-i18n="export.range">Date Range:</div>
+                    <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer;">
+                        <input type="radio" name="export-range-mode" value="all" checked>
+                        <span data-i18n="export.all_time">All messages</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer;">
+                        <input type="radio" name="export-range-mode" value="latest_days">
+                        <span data-i18n="export.latest_days">Latest N Days</span>
+                    </label>
+                    <div id="export-latest-days-box"
+                        style="display: none; align-items: center; gap: 8px; margin-left: 20px; margin-bottom: 6px;">
+                        <input type="number" id="export-latest-days" value="30" min="1" max="3650"
+                            style="width: 60px; padding: 2px 6px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <div style="display: flex; gap: 4px;">
+                            <button type="button" class="secondary-btn export-quick-day" data-days="7"
+                                style="padding: 1px 6px; font-size: 10px;">7d</button>
+                            <button type="button" class="secondary-btn export-quick-day" data-days="30"
+                                style="padding: 1px 6px; font-size: 10px;">30d</button>
+                            <button type="button" class="secondary-btn export-quick-day" data-days="90"
+                                style="padding: 1px 6px; font-size: 10px;">90d</button>
+                            <button type="button" class="secondary-btn export-quick-day" data-days="365"
+                                style="padding: 1px 6px; font-size: 10px;">1y</button>
+                        </div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer;">
+                        <input type="radio" name="export-range-mode" value="custom_range">
+                        <span data-i18n="export.custom_range">Custom date range</span>
+                    </label>
+                    <div id="export-custom-date-box"
+                        style="display: none; align-items: center; gap: 8px; margin-left: 20px; margin-top: 4px;">
+                        <span style="opacity: 0.7;" data-i18n="export.from">From:</span>
+                        <input type="date" id="export-start-date"
+                            style="padding: 2px 4px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <span style="opacity: 0.7;" data-i18n="export.to">To:</span>
+                        <input type="date" id="export-end-date"
+                            style="padding: 2px 4px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                    </div>
+
+                    <div
+                        style="margin-top: 8px; padding: 4px 8px; background: rgba(36,129,204,0.1); border-radius: 4px; font-size: 11px; display: flex; justify-content: space-between;">
+                        <span>Estimated matches:</span>
+                        <strong id="export-preview-badge" style="color: var(--link-color);">Calculating...</strong>
+                    </div>
+                </div>
+
+                <!-- Format & Partitioning Section -->
+                <div class="csp-section-card accent-purple">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 4px;"
+                                data-i18n="export.format">File Format:</label>
+                            <select id="export-format"
+                                style="width: 100%; padding: 4px 6px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                                <option value="md">Markdown (.md)</option>
+                                <option value="json">Structured JSON (.json)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 4px;"
+                                data-i18n="export.interval">Partitioning:</label>
+                            <select id="export-interval"
+                                style="width: 100%; padding: 4px 6px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                                <option value="single" data-i18n="export.interval_single">Single File</option>
+                                <option value="day" data-i18n="export.interval_day">By Day (Daily files)</option>
+                                <option value="week" data-i18n="export.interval_week">By Week</option>
+                                <option value="month" data-i18n="export.interval_month">By Month</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 8px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 4px;"
+                            data-i18n="export.style">Detail Style:</label>
+                        <select id="export-style"
+                            style="width: 100%; padding: 4px 6px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="verbose" data-i18n="export.style_verbose">Verbose (Full headers, blockquotes,
+                                separators)</option>
+                            <option value="compact" data-i18n="export.style_compact">Compact (Inline timestamp and
+                                author)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Element Inclusion Checkboxes -->
+                <div class="csp-section-card accent-amber">
+                    <div style="font-weight: 600; margin-bottom: 6px;" data-i18n="export.elements">Include Elements:
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        <label style="cursor: pointer;"><input type="checkbox" id="export-opt-reactions" checked>
+                            Reactions</label>
+                        <label style="cursor: pointer;"><input type="checkbox" id="export-opt-replies" checked> Reply
+                            Previews</label>
+                        <label style="cursor: pointer;"><input type="checkbox" id="export-opt-forwards" checked> Forward
+                            Headers</label>
+                        <label style="cursor: pointer;"><input type="checkbox" id="export-opt-media" checked> Media
+                            Filenames</label>
+                        <label style="cursor: pointer;"><input type="checkbox" id="export-opt-polls" checked> Poll
+                            Options</label>
+                        <label style="cursor: pointer;"><input type="checkbox" id="export-opt-service" checked> Service
+                            Messages</label>
+                    </div>
+                </div>
+
+                <!-- Delivery Option -->
+                <div style="display: flex; gap: 14px; align-items: center; padding: 4px 0;">
+                    <span style="font-weight: 600;" data-i18n="export.delivery">Delivery:</span>
+                    <label style="cursor: pointer;"><input type="radio" name="export-delivery" value="download" checked>
+                        <span data-i18n="export.download">Download to Browser</span></label>
+                    <label style="cursor: pointer;"><input type="radio" name="export-delivery" value="disk"> <span
+                            data-i18n="export.save_disk">Save to Server (db_exports/)</span></label>
+                </div>
+            </div>
+
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                <button type="button" class="secondary-btn" onclick="ExportManager.closeModal()"
+                    data-i18n="btn.cancel">Cancel</button>
+                <button type="button" id="export-run-btn" class="primary-btn"
+                    style="padding: 6px 16px; font-weight: 600;" data-i18n="export.start">🚀 Start Export</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscribers & Churn Log Modal -->
+    <div id="participants-modal" class="modal-overlay" style="display:none; z-index:4200;">
+        <div class="settings-modal-content" style="max-width: 720px; width: 95%;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                <h3 id="part-modal-title" style="margin: 0;" data-i18n="part.modal_title">👥 Subscribers & Churn Log
+                </h3>
+                <button type="button" class="modal-close" onclick="ParticipantsManager.closeModal()"
+                    style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+
+            <!-- Summary Counters -->
+            <div class="part-summary-grid">
+                <div class="part-stat-card">
+                    <div id="part-total-count" class="part-stat-num" style="color: var(--link-color);">—</div>
+                    <div class="part-stat-lbl">Total Members</div>
+                </div>
+                <div class="part-stat-card">
+                    <div id="part-active-count" class="part-stat-num" style="color: #10b981;">—</div>
+                    <div class="part-stat-lbl">Active Tracked</div>
+                </div>
+                <div class="part-stat-card">
+                    <div id="part-left-count" class="part-stat-num" style="color: #ef4444;">—</div>
+                    <div class="part-stat-lbl">Left (Own Will)</div>
+                </div>
+                <div class="part-stat-card">
+                    <div id="part-kicked-count" class="part-stat-num" style="color: #f59e0b;">—</div>
+                    <div class="part-stat-lbl">Kicked / Banned</div>
+                </div>
+            </div>
+
+            <!-- Toolbar: Tracker Toggle & Sync -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.1); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="part-tracker-toggle">
+                    <span style="font-weight: 600;" data-i18n="part.track_toggle">Track Subscriber Joins & Leaves</span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="part-last-synced" style="font-size: 11px; opacity: 0.7;">Never synced</span>
+                    <button type="button" id="part-sync-btn" class="action-btn"
+                        style="padding: 4px 10px; font-size: 11px;" data-i18n="part.sync_now">🔄 Sync Now</button>
+                </div>
+            </div>
+
+            <!-- Tabs & Search -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px;">
+                <div class="part-tabs-bar" style="margin-bottom: 0;">
+                    <button type="button" class="part-tab-btn active" data-status="all"
+                        data-i18n="part.tab_all">All</button>
+                    <button type="button" class="part-tab-btn" data-status="active"
+                        data-i18n="part.tab_active">Active</button>
+                    <button type="button" class="part-tab-btn" data-status="left" data-i18n="part.tab_left">Left (Own
+                        Will)</button>
+                    <button type="button" class="part-tab-btn" data-status="kicked" data-i18n="part.tab_kicked">Kicked /
+                        Banned</button>
+                    <button type="button" class="part-tab-btn" data-status="events" data-i18n="part.tab_events">Event
+                        Feed</button>
+                </div>
+                <input type="text" id="part-search-input" placeholder="Search..."
+                    data-i18n-placeholder="part.search_placeholder"
+                    style="padding: 4px 8px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; width: 180px;">
+            </div>
+
+            <!-- Table Container -->
+            <div
+                style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr
+                            style="background: rgba(0,0,0,0.15); font-size: 11px; border-bottom: 1px solid var(--border-color);">
+                            <th style="padding: 6px 8px;" data-i18n="part.col_user">User</th>
+                            <th style="padding: 6px 8px;" data-i18n="part.col_status">Status</th>
+                            <th style="padding: 6px 8px;" data-i18n="part.col_entered">Entered</th>
+                            <th style="padding: 6px 8px;" data-i18n="part.col_left">Left</th>
+                            <th style="padding: 6px 8px;" data-i18n="part.col_reason">Reason / Actor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="part-table-body">
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 16px; opacity: 0.6;">Loading
+                                subscribers...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                <button type="button" class="secondary-btn" onclick="ParticipantsManager.closeModal()"
+                    data-i18n="btn.close">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Scroll-to-bottom FAB -->
+    <button id="scroll-fab" class="scroll-fab" title="Scroll to bottom">
+        <span class="scroll-fab-icon">↓</span>
+        <span id="scroll-fab-badge" class="scroll-fab-badge">0</span>
+    </button>
+
+    <!-- Lightbox Gallery Modal -->
+    <div id="lightbox-overlay" class="lightbox-overlay">
+        <button class="lightbox-btn lightbox-close" title="Close (Esc)" data-i18n-title="lightbox.close">✕</button>
+        <button class="lightbox-btn lightbox-prev" title="Previous (←)" data-i18n-title="lightbox.prev">❮</button>
+        <button class="lightbox-btn lightbox-next" title="Next (→)" data-i18n-title="lightbox.next">❯</button>
+        <div class="lightbox-content-wrapper">
+            <div class="lightbox-caption"></div>
+            <div class="lightbox-toolbar">
+                <span class="lightbox-counter">1 / 1</span>
+                <button class="lightbox-tool-btn lightbox-zoom-btn" title="Zoom"
+                    data-i18n-title="lightbox.zoom">🔍</button>
+                <button class="lightbox-tool-btn lightbox-download-btn" title="Download"
+                    data-i18n-title="lightbox.download">⬇️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Context Menu -->
+    <div id="msg-context-menu" class="context-menu">
+        <div id="ctx-copy-text" class="context-menu-item" data-i18n="ctx.copy_text">📋 Copy Text</div>
+        <div id="ctx-copy-link" class="context-menu-item" data-i18n="ctx.copy_link">🔗 Copy Link</div>
+        <div id="ctx-inspect-media" class="context-menu-item" data-i18n="ctx.inspect_media">📦 Media Diagnostics</div>
+        <div id="ctx-view-json" class="context-menu-item" data-i18n="ctx.view_json">🔍 View Details</div>
+    </div>
+
+    <!-- Keyboard Shortcuts Cheatsheet Modal -->
+    <div id="shortcuts-modal" class="cheatsheet-modal">
+        <div class="cheatsheet-dialog">
+            <h3 data-i18n="shortcuts.title">⌨️ Keyboard Shortcuts</h3>
+            <div class="shortcut-row"><span data-i18n="shortcuts.focus_search">Focus Search</span><span
+                    class="shortcut-key">Ctrl + K / /</span></div>
+            <div class="shortcut-row"><span data-i18n="shortcuts.in_chat_search">In-Chat Search</span><span
+                    class="shortcut-key">Ctrl + F</span></div>
+            <div class="shortcut-row"><span data-i18n="shortcuts.navigate_lightbox">Navigate Lightbox</span><span
+                    class="shortcut-key">← / →</span></div>
+            <div class="shortcut-row"><span data-i18n="shortcuts.close_modals">Close Modals / Lightbox</span><span
+                    class="shortcut-key">Esc</span></div>
+            <div class="shortcut-row"><span data-i18n="shortcuts.help">Show Shortcuts Help</span><span
+                    class="shortcut-key">?</span></div>
+            <div style="text-align: right; margin-top: 16px;">
+                <button onclick="document.getElementById('shortcuts-modal').style.display='none'" class="action-btn"
+                    style="padding: 6px 14px; font-size: 13px;" data-i18n="btn.close">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Telegram Sessions Management Modal -->
+    <div id="sessions-modal" class="modal-overlay" style="display: none; z-index: 3800;">
+        <div class="settings-modal-content" style="max-width: 540px; width: 92%;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">📱</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600;" data-i18n="sessions.modal_title">Telegram
+                        Sessions</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="closeSessionsModal()"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+
+            <div
+                style="font-size: 12px; color: var(--text-color-light); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span data-i18n="sessions.active_notice">Only 1 active session at a time. Switching restarts
+                    server.</span>
+                <span id="sessions-count-badge" class="badge"
+                    style="background: var(--bg-hover); padding: 2px 8px; border-radius: 12px; font-size: 11px;">1
+                    session</span>
+            </div>
+
+            <!-- Session List Container -->
+            <div id="sessions-list"
+                style="display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; margin-bottom: 16px; padding-right: 4px;">
+                <!-- Rendered dynamically: (avatar - name|tag|number - session shutdown / switch) -->
+            </div>
+
+            <!-- Action Footer -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                <button type="button" id="sessions-add-btn" class="action-btn"
+                    style="display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 13px;">
+                    <span>➕</span> <span data-i18n="sessions.add_btn">Add Session</span>
+                </button>
+                <button type="button" onclick="closeSessionsModal()"
+                    style="background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;"
+                    data-i18n="btn.close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secure Telegram WebUI Login Modal -->
+    <div id="auth-modal" class="auth-modal-overlay">
+        <div class="auth-dialog">
+            <div class="auth-header">
+                <h3 data-i18n="auth.login_title">🔑 Telegram Account Login</h3>
+                <button class="modal-close auth-close"
+                    style="background:none;border:none;color:var(--text-color);font-size:18px;cursor:pointer;">✕</button>
+            </div>
+            <div class="auth-body">
+                <!-- Mode Switch Tabs -->
+                <div style="display:flex; border-bottom: 1px solid var(--border-color); margin-bottom: 16px; gap: 8px;">
+                    <button type="button" id="auth-tab-qr" class="auth-tab active"
+                        style="flex:1; padding: 10px; background:none; border:none; border-bottom: 2px solid var(--accent-color, #2997e0); color: var(--text-color); font-weight:600; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <span>📱</span> <span>QR Code (Instant)</span>
+                    </button>
+                    <button type="button" id="auth-tab-phone" class="auth-tab"
+                        style="flex:1; padding: 10px; background:none; border:none; border-bottom: 2px solid transparent; color: var(--text-dim, #8a99ad); font-weight:500; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <span>📞</span> <span>Phone Code</span>
+                    </button>
+                </div>
+
+                <!-- Step QR: Instant QR Code Login -->
+                <div id="auth-step-qr" class="auth-step active" style="text-align:center;">
+                    <div style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">
+                        Scan with your Telegram mobile app to log in instantly without phone code or SMS.
+                    </div>
+
+                    <div id="auth-qr-container"
+                        style="display:flex; justify-content:center; align-items:center; min-height:220px; background:white; border-radius:12px; padding:12px; margin:0 auto 12px auto; width:220px; box-shadow:0 4px 16px rgba(0,0,0,0.3);">
+                        <div class="spinner"
+                            style="width:36px; height:36px; border:3px solid #ccc; border-top-color:#2997e0; border-radius:50%; animation:spin 1s linear infinite;">
+                        </div>
+                    </div>
+
+                    <div id="auth-qr-timer" style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">
+                        Expires in <span id="auth-qr-seconds"
+                            style="font-weight:600; color:var(--accent-color);">60</span>s
+                    </div>
+
+                    <div
+                        style="background:rgba(255,255,255,0.04); border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; text-align:left; font-size:12px; line-height:1.55; color:var(--text-color);">
+                        <strong>How to scan:</strong><br>
+                        1. Open Telegram on your phone.<br>
+                        2. Go to <strong>Settings → Devices → Link Desktop Device</strong>.<br>
+                        3. Point your camera at the QR code above.
+                    </div>
+
+                    <div id="auth-error-qr" class="auth-error" style="margin-top:10px;"></div>
+
+                    <div class="auth-actions" style="margin-top:14px; display:flex; justify-content:center;">
+                        <button type="button" id="auth-qr-refresh-btn"
+                            style="background:none; border:1px solid var(--border-color); color:var(--text-color); padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px;">🔄
+                            Refresh QR Code</button>
+                    </div>
+                </div>
+
+                <!-- Step 1: Phone & Optional Label -->
+                <div id="auth-step-1" class="auth-step">
+                    <div class="auth-form-group">
+                        <label for="auth-phone-input" data-i18n="auth.phone_label">Phone Number (with international
+                            country code):</label>
+                        <input type="tel" id="auth-phone-input" class="auth-input" placeholder="+1234567890"
+                            data-i18n-placeholder="auth.phone_placeholder" autocomplete="off" autocorrect="off"
+                            spellcheck="false">
+                    </div>
+                    <div class="auth-form-group" style="margin-top: 8px;">
+                        <label for="auth-session-name-input" data-i18n="auth.session_name_label">Session Name / Label
+                            (optional):</label>
+                        <input type="text" id="auth-session-name-input" class="auth-input"
+                            placeholder="e.g. personal_account" data-i18n-placeholder="auth.session_name_placeholder"
+                            autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <div id="auth-error-1" class="auth-error"></div>
+                    <div class="auth-security-notice" data-i18n="auth.security_notice_phone">
+                        🛡️ <strong>Zero-Exposure Security:</strong> Credentials are sent directly to your local
+                        Telethon client over loopback. Never logged to console, disk, or remote servers.
+                    </div>
+                    <div class="auth-actions">
+                        <button type="button" class="action-btn" id="auth-send-code-btn"
+                            data-i18n="auth.send_code_btn">Next: Send Code ➔</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Verification Code -->
+                <div id="auth-step-2" class="auth-step">
+                    <!-- Dynamic Delivery Channel Info Card -->
+                    <div id="auth-delivery-info" class="auth-delivery-card"
+                        style="display:none; margin: 0 0 14px 0; padding: 12px 14px; background: rgba(36, 129, 204, 0.12); border: 1px solid rgba(36, 129, 204, 0.35); border-radius: 8px; font-size: 13px; line-height: 1.45;">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                            <span id="auth-delivery-title"
+                                style="font-weight:600; color:var(--accent-color, #2997e0); display:flex; align-items:center; gap:6px;"></span>
+                            <span id="auth-code-length"
+                                style="font-size:11px; opacity:0.85; font-family:monospace; background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;"></span>
+                        </div>
+                        <div id="auth-delivery-desc" style="color:var(--text-color, #e5eaf2); font-size:12px;"></div>
+                        <div id="auth-delivery-warning"
+                            style="display:none; margin-top:8px; padding:6px 10px; background:rgba(255,152,0,0.15); border:1px solid rgba(255,152,0,0.4); border-radius:6px; color:#ffb74d; font-size:12px; font-weight:500;">
+                        </div>
+                    </div>
+
+                    <div class="auth-form-group">
+                        <label for="auth-code-input" data-i18n="auth.code_label">Verification Code:</label>
+                        <input type="text" inputmode="numeric" id="auth-code-input" class="auth-input"
+                            placeholder="12345" data-i18n-placeholder="auth.code_placeholder"
+                            autocomplete="one-time-code" autocorrect="off" spellcheck="false"
+                            style="font-size:18px; letter-spacing:4px; text-align:center;">
+                    </div>
+                    <div id="auth-error-2" class="auth-error"></div>
+                    <div class="auth-actions" style="display:flex; justify-content:space-between; align-items:center;">
+                        <button type="button" id="auth-back-btn"
+                            style="background:none;border:1px solid var(--border-color);color:var(--text-color);padding:6px 12px;border-radius:6px;cursor:pointer;"
+                            data-i18n="auth.back_btn">← Back</button>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" id="auth-resend-btn"
+                                style="display:none; background:none; border:1px solid var(--border-color); color:var(--text-color); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;">Resend
+                                Code</button>
+                            <button type="button" class="action-btn" id="auth-verify-code-btn"
+                                data-i18n="auth.verify_code_btn">Verify Code ➔</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: 2FA Password -->
+                <div id="auth-step-3" class="auth-step">
+                    <div class="auth-form-group">
+                        <label for="auth-password-input" data-i18n="auth.pwd_label">Two-Factor Authentication (2FA Cloud
+                            Password):</label>
+                        <input type="password" id="auth-password-input" class="auth-input"
+                            placeholder="Enter your 2FA password" data-i18n-placeholder="auth.password_placeholder"
+                            autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <div id="auth-error-3" class="auth-error"></div>
+                    <div class="auth-security-notice" data-i18n="auth.security_notice_pwd">
+                        🔒 Password is used exclusively in memory to compute authentication hash, then wiped
+                        immediately.
+                    </div>
+                    <div class="auth-actions">
+                        <button type="button" class="action-btn" id="auth-submit-2fa-btn"
+                            data-i18n="auth.submit_2fa_btn">Unlock Account ➔</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Restart Reconnect Overlay -->
+    <div id="session-restart-overlay"
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: white; text-align: center; padding: 20px;">
+        <div class="spinner"
+            style="width: 44px; height: 44px; border-width: 4px; border-style: solid; border-color: rgba(255,255,255,0.2); border-top-color: #00c853; border-radius: 50%; animation: spin 1s linear infinite;">
+        </div>
+        <div style="font-size: 17px; font-weight: 600;" id="session-restart-title"
+            data-i18n="sessions.restarting_title">Switching session...</div>
+        <div style="font-size: 13px; color: #aaa; max-width: 380px;" id="session-restart-desc"
+            data-i18n="sessions.restarting_desc">Server is restarting with the selected Telegram session. Reconnecting
+            automatically...</div>
+    </div>
+    <!-- Asset Inspector Modal -->
+    <div id="asset-inspector-modal" class="user-modal-overlay"
+        style="display: none; z-index: 3500; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); align-items: center; justify-content: center;">
+        <div class="user-modal-dialog"
+            style="background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; width: 92%; max-width: 860px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="user-modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border-color);">
+                <h3 class="user-modal-title" id="asset-inspector-title"
+                    style="margin: 0; font-size: 15px; font-weight: 600;">📦 Chat Media Asset Inspector</h3>
+                <button class="user-modal-close" onclick="closeAssetInspector()"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <div class="user-modal-body"
+                style="padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+                <!-- Summary Metrics Bar -->
+                <div id="asset-stats-bar"
+                    style="display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; font-size: 12px; background: rgba(255,255,255,0.04); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <span>Total Files: <b id="asset-total-count">0</b></span>
+                    <span>Downloaded: <b id="asset-downloaded-count" style="color: #00c853;">0</b></span>
+                    <span>Missing: <b id="asset-missing-count" style="color: #ffa726;">0</b></span>
+                    <span>Missing Size: <b id="asset-delta-size" style="color: #42a5f5;">0 MB</b></span>
+                    <span>Excluded by Rules: <b id="asset-excluded-stat" style="color: #e91e63;">0 (0 MB)</b></span>
+                    <span>Voice Notes: <b id="asset-voice-stat" style="color: #42a5f5;">0</b></span>
+                </div>
+                <!-- Live Catch-up Progress Banner -->
+                <div id="asset-catchup-banner"
+                    style="display: none; align-items: center; justify-content: space-between; background: rgba(33, 150, 243, 0.12); border: 1px solid rgba(33, 150, 243, 0.4); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--text-color);">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                        <span class="asset-spinner"
+                            style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(33, 150, 243, 0.3); border-top-color: #2196f3; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+                        <div style="display: flex; flex-direction: column; min-width: 0;">
+                            <span id="asset-catchup-status-text"
+                                style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Downloading
+                                missing media...</span>
+                            <span id="asset-catchup-last-item"
+                                style="font-size: 11px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-left: 12px;">
+                        <span id="asset-catchup-progress-ratio" style="font-weight: 600; color: #2196f3;">0%</span>
+                        <div
+                            style="width: 80px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                            <div id="asset-catchup-progress-bar"
+                                style="width: 0%; height: 100%; background: #2196f3; transition: width 0.3s ease;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Filter Pills, Jump/Search Toolbar & Trigger Action -->
+                <div
+                    style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;" id="asset-filter-pills">
+                        <button type="button" class="action-btn asset-filter-pill active" data-type="all"
+                            style="padding: 4px 10px; font-size: 11px;">All</button>
+                        <button type="button" class="action-btn asset-filter-pill" data-type="photo"
+                            style="padding: 4px 10px; font-size: 11px; background: none; border: 1px solid var(--border-color); color: var(--text-color);">Photos</button>
+                        <button type="button" class="action-btn asset-filter-pill" data-type="video"
+                            style="padding: 4px 10px; font-size: 11px; background: none; border: 1px solid var(--border-color); color: var(--text-color);">Videos</button>
+                        <button type="button" class="action-btn asset-filter-pill" data-type="document"
+                            style="padding: 4px 10px; font-size: 11px; background: none; border: 1px solid var(--border-color); color: var(--text-color);">Docs</button>
+                        <select id="asset-chatter-filter"
+                            style="padding: 3px 6px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg-alt); color: var(--text-color); max-width: 140px; cursor: pointer;">
+                            <option value="">All Chatters</option>
+                        </select>
+                        <button type="button" class="action-btn asset-filter-pill" data-type="voice"
+                            style="padding: 4px 10px; font-size: 11px; background: none; border: 1px solid var(--border-color); color: var(--text-color);">Voice</button>
+                        <button type="button" class="action-btn asset-filter-pill" data-type="excluded"
+                            style="padding: 4px 10px; font-size: 11px; background: none; border: 1px solid var(--border-color); color: #e91e63;">🚫
+                            Excluded (<span id="asset-pill-excluded-count">0</span>)</button>
+                        <label
+                            style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; color: var(--text-color); user-select: none; padding: 3px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: rgba(255,255,255,0.04); margin-left: 4px;"
+                            title="Filter to show only media that has not yet been downloaded to disk">
+                            <input type="checkbox" id="asset-filter-not-downloaded"
+                                style="cursor: pointer; margin: 0;" />
+                            <span style="color: #ffa726; font-weight: 500;">⏳ Not Downloaded</span>
+                        </label>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <div
+                            style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px 8px;">
+                            <span style="font-size: 11px; opacity: 0.7;">🎯</span>
+                            <input type="text" id="asset-search-input" placeholder="Jump Msg ID or name..."
+                                style="background: transparent; border: none; outline: none; color: var(--text-color); font-size: 11px; width: 145px;" />
+                            <button type="button" id="asset-search-clear" title="Clear filter"
+                                style="background: none; border: none; color: var(--text-color); cursor: pointer; font-size: 11px; padding: 0 2px; display: none;">✕</button>
+                            <button type="button" id="asset-jump-btn" class="action-btn"
+                                style="padding: 3px 8px; font-size: 11px; background: var(--primary-color, #2481cc); color: white;">Jump</button>
+                        </div>
+                        <button id="asset-trigger-excluded-catchup-btn" type="button" class="action-btn"
+                            style="display: none; background: #e91e63; color: white; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer;"
+                            data-i18n="archive.download_excluded">⚡ Download Excluded Media</button>
+                        <button id="asset-trigger-batch-transcribe-btn" type="button" class="action-btn"
+                            style="background: #2481cc; color: white; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; margin-right: 6px;">🎙️
+                            Transcribe Untranscribed (<span id="asset-untranscribed-count">0</span>)</button>
+                        <button id="asset-trigger-catchup-btn" type="button" class="action-btn"
+                            style="background: #00c853; color: white; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer;">⚡
+                            Download Missing Media</button>
+                    </div>
+                </div>
+                <!-- Asset Table -->
+                <div
+                    style="max-height: 420px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <table id="asset-inspector-table"
+                        style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                        <thead
+                            style="position: sticky; top: 0; background: var(--panel-bg); border-bottom: 1px solid var(--border-color); z-index: 10;">
+                            <tr>
+                                <th class="asset-sort-th" data-sort="id"
+                                    style="padding: 8px; cursor: pointer; user-select: none;"
+                                    title="Click to sort by Message ID">Msg ID <span class="sort-icon"></span></th>
+                                <th class="asset-sort-th" data-sort="date"
+                                    style="padding: 8px; cursor: pointer; user-select: none;"
+                                    title="Click to sort by Date">Date <span class="sort-icon"></span></th>
+                                <th class="asset-sort-th" data-sort="type"
+                                    style="padding: 8px; cursor: pointer; user-select: none;"
+                                    title="Click to sort by Type">Type <span class="sort-icon"></span></th>
+                                <th class="asset-sort-th" data-sort="name"
+                                    style="padding: 8px; cursor: pointer; user-select: none;"
+                                    title="Click to sort by File Name">File Name <span class="sort-icon"></span></th>
+                                <th class="asset-sort-th" data-sort="size"
+                                    style="padding: 8px; cursor: pointer; user-select: none;"
+                                    title="Click to sort by Size">Size <span class="sort-icon"></span></th>
+                                <th class="asset-sort-th" data-sort="status"
+                                    style="padding: 8px; cursor: pointer; user-select: none;"
+                                    title="Click to sort by Status">Status <span class="sort-icon"></span></th>
+                                <th style="padding: 8px; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asset-table-body">
+                            <tr>
+                                <td colspan="7"
+                                    style="text-align: center; padding: 20px; color: var(--text-color-light);">Loading
+                                    assets...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Catch-up Oversize Warning Modal -->
+    <div id="catchup-warning-modal" class="user-modal-overlay"
+        style="display: none; z-index: 3600; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center;">
+        <div class="user-modal-dialog"
+            style="background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; width: 90%; max-width: 480px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="user-modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #ffa726;">⚠️ Large Media Detected</h3>
+                <button class="user-modal-close"
+                    onclick="document.getElementById('catchup-warning-modal').style.display='none'"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <div style="padding: 18px; font-size: 13px; line-height: 1.5; color: var(--text-color);">
+                <p id="catchup-warning-text" style="margin-top: 0; margin-bottom: 14px;"></p>
+                <div id="catchup-warning-stats"
+                    style="background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                    <button type="button" class="action-btn"
+                        onclick="document.getElementById('catchup-warning-modal').style.display='none'"
+                        style="background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 7px 12px; font-size: 12px;">Cancel</button>
+                    <button type="button" id="catchup-within-limits-btn" class="action-btn"
+                        style="background: var(--primary-color, #2481cc); color: white; padding: 7px 14px; font-size: 12px; font-weight: 500;">Download
+                        Within Limits</button>
+                    <button type="button" id="catchup-bypass-limits-btn" class="action-btn"
+                        style="background: #e65100; color: white; padding: 7px 14px; font-size: 12px; font-weight: 500;">⚡
+                        Download ALL (Bypass Limits)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Media Diagnostics Modal -->
+    <div id="media-diagnostics-modal" class="user-modal-overlay"
+        style="display: none; z-index: 3700; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); align-items: center; justify-content: center;">
+        <div class="user-modal-dialog"
+            style="background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; width: 92%; max-width: 620px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div class="user-modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 600;" id="media-diag-title">📦 Media Diagnostics
+                </h3>
+                <button class="user-modal-close" onclick="closeMediaDiagnosticsModal()"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <div class="user-modal-body" id="media-diag-body"
+                style="padding: 18px; overflow-y: auto; font-size: 13px; line-height: 1.5; color: var(--text-color); display: flex; flex-direction: column; gap: 14px;">
+                <!-- Dynamically populated -->
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.12);">
+                <button type="button" id="media-diag-copy-btn" class="action-btn"
+                    style="background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 12px; font-size: 12px;">📋
+                    Copy Diagnostics</button>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="media-diag-jump-inspector-btn" class="action-btn"
+                        style="background: var(--primary-color, #2481cc); color: white; padding: 6px 14px; font-size: 12px; font-weight: 500;">🔍
+                        Open in Inspector</button>
+                    <button type="button" class="action-btn" onclick="closeMediaDiagnosticsModal()"
+                        style="background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 6px 12px; font-size: 12px;"
+                        data-i18n="btn.close">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Media Right-Click Context Menu -->
+    <div id="media-context-menu" class="media-context-menu" style="display: none;">
+        <div class="ctx-item" id="ctx-jump-to-msg">
+            <span>🎯</span> <span data-i18n="media.jump_to_msg">Jump to message</span>
+        </div>
+        <div class="ctx-item" id="ctx-select-item">
+            <span id="ctx-select-icon">☑️</span> <span id="ctx-select-text" data-i18n="media.select_item">Select
+                item</span>
+        </div>
+    </div>
+
+    <!-- Media Batch Export Modal -->
+    <div id="media-export-modal" class="modal-overlay" style="display: none; z-index: 4000;">
+        <div class="settings-modal-content" style="max-width: 480px; width: 90%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 16px;">📦 <span data-i18n="export.modal_title">Export Selected
+                        Media</span></h3>
+                <button type="button" class="modal-close"
+                    onclick="document.getElementById('media-export-modal').style.display='none'"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <p style="margin-top: 0; font-size: 13px; color: var(--text-color);">
+                    <span data-i18n="export.ready_export">Ready to export</span> <strong
+                        id="export-items-count">0</strong> <span data-i18n="export.files_selected">files</span>.
+                </p>
+                <label for="export-dest-input"
+                    style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-color);"
+                    data-i18n="export.dest_label">
+                    Local Destination Directory:
+                </label>
+                <input type="text" id="export-dest-input" placeholder="e.g. C:\Users\Username\Downloads\TelegramMedia"
+                    style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--panel-bg-alt); color: var(--text-color); font-size: 13px; margin-bottom: 8px;">
+                <div style="font-size: 11px; color: var(--text-color-light); line-height: 1.4;"
+                    data-i18n="export.dest_hint">
+                    Specify an absolute folder path on your computer. If the directory doesn't exist, it will be created
+                    automatically.
+                </div>
+                <div id="export-progress-msg"
+                    style="display: none; margin-top: 10px; font-size: 12px; color: var(--link-color);">
+                    ⏳ <span data-i18n="export.exporting">Exporting files, please wait...</span>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="export-cancel-btn" class="secondary-btn" type="button"
+                    onclick="document.getElementById('media-export-modal').style.display='none'"
+                    data-i18n="btn.cancel">Cancel</button>
+                <button id="export-confirm-btn" class="start-btn" type="button" style="width: auto; padding: 6px 16px;"
+                    data-i18n="export.export_now">Export Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-Way Resume Download Modal -->
+    <div id="modal-resume-download" class="modal-overlay" style="display: none; z-index: 4500;">
+        <div class="settings-modal-content" style="max-width: 540px; width: 92%; max-height: 90vh; overflow-y: auto;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <h3 style="margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #f59e0b;">⚡</span>
+                    <span data-i18n="resume.modal_title">Resume Chat Backup</span>
+                </h3>
+                <button type="button" class="modal-close" onclick="closeResumeModal()"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+
+            <div id="resume-chat-summary"
+                style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px;">
+                <div style="font-weight: 600; font-size: 14px; margin-bottom: 6px;" id="resume-modal-chat-name">...
+                </div>
+                <div
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: var(--text-color-light);">
+                    <div><span data-i18n="resume.cached_msgs">Cached Messages:</span> <b id="resume-summary-cached"
+                            style="color: var(--text-color);">0</b></div>
+                    <div><span data-i18n="resume.server_top">Server Top Msg ID:</span> <b id="resume-summary-server"
+                            style="color: var(--text-color);">~0</b></div>
+                    <div><span data-i18n="resume.oldest_cached">Oldest Cached:</span> <b id="resume-summary-oldest"
+                            style="color: var(--text-color);">...</b></div>
+                    <div><span data-i18n="resume.newest_cached">Newest Cached:</span> <b id="resume-summary-newest"
+                            style="color: var(--text-color);">...</b></div>
+                </div>
+            </div>
+
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--text-color);"
+                data-i18n="resume.choose_strategy">Choose Resume Strategy:</div>
+
+            <div class="resume-strategies-grid"
+                style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+                <label class="resume-strategy-card selected" id="strategy-card-latest"
+                    onclick="selectResumeStrategy('latest_first')">
+                    <input type="radio" name="resume_strategy" value="latest_first" checked style="display: none;">
+                    <div class="strategy-icon">⚡⬇️</div>
+                    <div class="strategy-details">
+                        <div class="strategy-title" data-i18n="resume.strategy_latest_title">Download Latest First, Then
+                            Older History</div>
+                        <div class="strategy-desc" data-i18n="resume.strategy_latest_desc">Recommended for active chats.
+                            Catches up with recent messages first so you can read right away, then backfills past
+                            history in background.</div>
+                    </div>
+                </label>
+
+                <label class="resume-strategy-card" id="strategy-card-older"
+                    onclick="selectResumeStrategy('older_first')">
+                    <input type="radio" name="resume_strategy" value="older_first" style="display: none;">
+                    <div class="strategy-icon">⏳📜</div>
+                    <div class="strategy-details">
+                        <div class="strategy-title" data-i18n="resume.strategy_older_title">Prioritize Older History
+                            First, Then Latest at End</div>
+                        <div class="strategy-desc" data-i18n="resume.strategy_older_desc">Recommended for complete
+                            archives. Sweeps backward down to day 1 before catching up with any newly arrived messages.
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Media Options Accordion / Toggle -->
+            <details id="resume-media-accordion"
+                style="margin-bottom: 18px; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px; background: rgba(255,255,255,0.02);">
+                <summary style="font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;"
+                    data-i18n="resume.media_settings">Media Download Settings (Inherited)</summary>
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-top: 10px;">
+                    <label class="setting-item card-style" style="margin: 0; padding: 6px;">
+                        <input type="checkbox" id="resume-dl-photos" checked class="hidden-cb">
+                        <div class="s-name" style="font-size: 11px;" data-i18n="resume.photos">Photos</div>
+                    </label>
+                    <label class="setting-item card-style" style="margin: 0; padding: 6px;">
+                        <input type="checkbox" id="resume-dl-videos" checked class="hidden-cb">
+                        <div class="s-name" style="font-size: 11px;" data-i18n="resume.videos">Videos</div>
+                    </label>
+                    <label class="setting-item card-style" style="margin: 0; padding: 6px;">
+                        <input type="checkbox" id="resume-dl-voices" checked class="hidden-cb">
+                        <div class="s-name" style="font-size: 11px;" data-i18n="resume.voice">Voice</div>
+                    </label>
+                    <label class="setting-item card-style" style="margin: 0; padding: 6px;">
+                        <input type="checkbox" id="resume-dl-files" checked class="hidden-cb">
+                        <div class="s-name" style="font-size: 11px;" data-i18n="resume.files">Files</div>
+                    </label>
+                </div>
+            </details>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" id="resume-trigger-hor-reconcile-btn" class="secondary-btn"
+                    style="margin-right: auto; border-color: var(--accent-color, #2481cc); color: var(--accent-color, #2481cc); font-size: 12px; padding: 7px 12px;"
+                    title="Check 500-message blocks in O(1) network hops"><span>⚡ O(1) Gap Reconcile</span></button>
+                <button type="button" class="secondary-btn" onclick="closeResumeModal()"
+                    data-i18n="btn.cancel">Cancel</button>
+                <button type="button" id="resume-confirm-btn" class="start-btn" style="width: auto; padding: 8px 20px;"
+                    onclick="confirmResumeDownload()">
+                    <span>▶️</span> <span data-i18n="resume.start_btn">Start Resume</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lego Block Investigator Modal -->
+    <div id="investigator-modal" class="modal-overlay"
+        style="display: none; z-index: 3900; align-items: center; justify-content: center; background: rgba(0,0,0,0.75);">
+        <div class="investigator-modal-dialog">
+            <!-- Modal Header -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 8px; flex-shrink: 0;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">🧭</span>
+                    <div>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 700;">Archive Investigator</h2>
+                        <span style="font-size: 11px; color: var(--text-color-light);">Multi-dimensional cross-chat
+                            analytics, drilldown, and media trends</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <!-- View Mode Switcher -->
+                    <div
+                        style="display: flex; gap: 4px; align-items: center; background: rgba(0,0,0,0.25); padding: 2px 4px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <button type="button" class="inv-view-toggle-btn active" data-mode="split"
+                            onclick="InvestigatorEngine.setViewMode('split')">🔀 Split</button>
+                        <button type="button" class="inv-view-toggle-btn" data-mode="charts"
+                            onclick="InvestigatorEngine.setViewMode('charts')">📊 Charts</button>
+                        <button type="button" class="inv-view-toggle-btn" data-mode="table"
+                            onclick="InvestigatorEngine.setViewMode('table')">📋 Table</button>
+                    </div>
+                    <button type="button" class="action-btn" onclick="InvestigatorEngine.exportCsv()"
+                        style="background: none; border: 1px solid var(--border-color); color: var(--text-color); padding: 5px 10px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                        <span>📥</span> Export CSV
+                    </button>
+                    <button type="button" onclick="InvestigatorEngine.close()"
+                        style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-color); padding: 0 4px; line-height: 1;"
+                        title="Close">✕</button>
+                </div>
+            </div>
+
+            <!-- Presets Row -->
+            <div
+                style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px dashed var(--border-color); flex-shrink: 0;">
+                <button type="button" class="inv-preset-btn active" data-preset="heavyweight"
+                    onclick="InvestigatorEngine.applyPreset('heavyweight')">
+                    🏋️‍♂️ Heavyweight Champions
+                </button>
+                <button type="button" class="inv-preset-btn" data-preset="activity_timeline"
+                    onclick="InvestigatorEngine.applyPreset('activity_timeline')">
+                    📈 Activity Timeline
+                </button>
+                <button type="button" class="inv-preset-btn" data-preset="cross_chat_memes"
+                    onclick="InvestigatorEngine.applyPreset('cross_chat_memes')">
+                    🔁 Cross-Chat Media
+                </button>
+                <button type="button" class="inv-preset-btn" data-preset="bot_footprint"
+                    onclick="InvestigatorEngine.applyPreset('bot_footprint')">
+                    🤖 Bot vs Human
+                </button>
+                <button type="button" class="inv-preset-btn" data-preset="peak_hours"
+                    onclick="InvestigatorEngine.applyPreset('peak_hours')">
+                    🦉 Peak Hours
+                </button>
+            </div>
+
+            <!-- Lego Filter Toolbar (Fully Responsive, No Overlap) -->
+            <div
+                style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; flex-shrink: 0;">
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) auto; gap: 8px; align-items: end;">
+                    <div style="min-width: 0;">
+                        <label
+                            style="font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; color: var(--text-color-light);">Target
+                            Chat:</label>
+                        <select id="inv-chat-select" onchange="InvestigatorEngine.onChatChange(this.value)"
+                            style="width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                            <option value="all">All Chats</option>
+                        </select>
+                    </div>
+                    <div style="min-width: 0;">
+                        <label
+                            style="font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; color: var(--text-color-light);">Sender
+                            / User:</label>
+                        <select id="inv-sender-select"
+                            style="width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                            <option value="all">All Senders</option>
+                        </select>
+                    </div>
+                    <div style="min-width: 0;">
+                        <label
+                            style="font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; color: var(--text-color-light);">Media
+                            Type:</label>
+                        <select id="inv-media-type"
+                            style="width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                            <option value="all">All Types</option>
+                            <option value="photo">Photos</option>
+                            <option value="video">Videos</option>
+                            <option value="voice">Voice Notes</option>
+                            <option value="audio">Audio / Music</option>
+                            <option value="document">Files / Docs</option>
+                            <option value="sticker">Stickers</option>
+                            <option value="animation">GIFs / Animation</option>
+                        </select>
+                    </div>
+                    <div style="min-width: 0;">
+                        <label
+                            style="font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; color: var(--text-color-light);">Group
+                            Dimension:</label>
+                        <select id="inv-group-by"
+                            style="width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                            <option value="sender" selected>Sender / User</option>
+                            <option value="chat">Chat / Channel</option>
+                            <option value="month">Month (YYYY-MM)</option>
+                            <option value="day">Day (YYYY-MM-DD)</option>
+                            <option value="media_type">Media Datatype</option>
+                            <option value="hour">Hour of Day (0-23)</option>
+                            <option value="day_of_week">Day of Week</option>
+                            <option value="bot">Bot vs Human</option>
+                            <option value="cross_chat">Cross-Chat Media</option>
+                        </select>
+                    </div>
+                    <div style="min-width: 0;">
+                        <label
+                            style="font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; color: var(--text-color-light);">Sort
+                            Metric:</label>
+                        <div style="display: flex; gap: 4px;">
+                            <select id="inv-sort-by"
+                                style="flex: 1; min-width: 0; box-sizing: border-box; padding: 4px 5px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                                <option value="total_size" selected>Storage (MB)</option>
+                                <option value="count">Msg Count</option>
+                                <option value="avg_size">Avg Size</option>
+                                <option value="label">Label</option>
+                            </select>
+                            <select id="inv-sort-order"
+                                style="width: 52px; min-width: 0; box-sizing: border-box; padding: 4px 2px; font-size: 11px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                                <option value="desc" selected>DESC</option>
+                                <option value="asc">ASC</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="min-width: 0;">
+                        <label
+                            style="font-size: 10px; font-weight: 600; display: block; margin-bottom: 2px; color: var(--text-color-light);">Date
+                            Range:</label>
+                        <div style="display: flex; gap: 3px; align-items: center;">
+                            <input type="date" id="inv-date-start"
+                                style="width: 90px; box-sizing: border-box; padding: 3px 4px; font-size: 10px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                            <span style="font-size: 10px; opacity: 0.6;">–</span>
+                            <input type="date" id="inv-date-end"
+                                style="width: 90px; box-sizing: border-box; padding: 3px 4px; font-size: 10px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 5px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 4px; align-items: flex-end;">
+                        <button type="button" class="action-btn" onclick="InvestigatorEngine.runQuery()"
+                            style="padding: 5px 12px; font-size: 11px; font-weight: 600; background: var(--link-color); color: white; display: flex; align-items: center; gap: 4px; height: 26px; border-radius: 5px;"
+                            title="Execute custom query">
+                            <span>🔍</span> Run
+                        </button>
+                        <button type="button" class="action-btn" onclick="InvestigatorEngine.resetFilters()"
+                            style="padding: 5px 8px; font-size: 11px; background: rgba(255,255,255,0.06); color: var(--text-color); height: 26px; border-radius: 5px; border: 1px solid var(--border-color);"
+                            title="Reset to defaults">
+                            ↺
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI Metric Ribbon -->
+            <div
+                style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; flex-shrink: 0;">
+                <div
+                    style="background: rgba(36,129,204,0.1); border: 1px solid rgba(36,129,204,0.25); border-radius: 6px; padding: 5px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11px; color: var(--text-color-light);">Total Messages</span>
+                    <span id="inv-stat-msgs" style="font-size: 13px; font-weight: 700;">0</span>
+                </div>
+                <div
+                    style="background: rgba(0,200,83,0.1); border: 1px solid rgba(0,200,83,0.25); border-radius: 6px; padding: 5px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11px; color: var(--text-color-light);">Storage Volume</span>
+                    <span id="inv-stat-size" style="font-size: 13px; font-weight: 700; color: #00e676;">0 MB</span>
+                </div>
+                <div
+                    style="background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.25); border-radius: 6px; padding: 5px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 11px; color: var(--text-color-light);">Rows Returned</span>
+                    <span id="inv-stat-rows" style="font-size: 13px; font-weight: 700; color: #ffa726;">0</span>
+                </div>
+            </div>
+
+            <!-- Visual Content Workspace (Flex Column that fits remainder of 90vh) -->
+            <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden;">
+                <!-- Charts Row -->
+                <div id="inv-charts-wrapper"
+                    style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 8px; min-height: 200px; max-height: 220px; flex-shrink: 0;">
+                    <div
+                        style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px; position: relative; width: 100%; height: 100%; min-height: 180px; overflow: hidden; box-sizing: border-box;">
+                        <canvas id="inv-bar-chart"></canvas>
+                    </div>
+                    <div
+                        style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px; position: relative; width: 100%; height: 100%; min-height: 180px; overflow: hidden; box-sizing: border-box;">
+                        <canvas id="inv-donut-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tabular Breakdown Wrapper (Internal Scroll, No Modal Overspill) -->
+                <div id="inv-table-wrapper"
+                    style="border: 1px solid var(--border-color); border-radius: 8px; overflow-y: auto; flex: 1; min-height: 120px; background: rgba(0,0,0,0.15);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+                        <thead
+                            style="position: sticky; top: 0; background: var(--panel-bg, #181f2a); border-bottom: 1px solid var(--border-color); z-index: 5;">
+                            <tr>
+                                <th style="padding: 7px 12px; min-width: 180px;">Dimension / Identity</th>
+                                <th style="padding: 7px 10px; text-align: right; width: 90px;">Messages</th>
+                                <th style="padding: 7px 10px; text-align: right; width: 100px;">Storage</th>
+                                <th style="padding: 7px 10px; text-align: right; width: 90px;">Avg Size</th>
+                                <th style="padding: 7px 12px; min-width: 220px;">Top / Linked File</th>
+                                <th style="padding: 7px 10px; text-align: center; width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inv-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 30px; color: #888;">Select a preset
+                                    or run a query to begin.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Loading Spinner Overlay -->
+            <div id="inv-loading"
+                style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); align-items: center; justify-content: center; border-radius: 14px; z-index: 50;">
+                <div style="text-align: center; color: white;">
+                    <div style="font-size: 28px; animation: spin 1s infinite linear;">⏳</div>
+                    <div style="margin-top: 8px; font-size: 13px; font-weight: 500;">Analyzing archive messages...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Speech-to-Text Whisper Setup Modal -->
+    <div id="whisper-setup-modal" class="modal-overlay"
+        style="display: none; z-index: 4000; align-items: center; justify-content: center; background: rgba(0,0,0,0.75);">
+        <div class="modal-content"
+            style="max-width: 520px; width: 92%; background: var(--panel-bg, #1e2633); border-radius: 12px; border: 1px solid var(--border-color); padding: 22px; box-shadow: 0 16px 36px rgba(0,0,0,0.45); display: flex; flex-direction: column; gap: 14px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🎙️</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 600;">Speech-to-Text Configuration</h3>
+                </div>
+                <button type="button" class="modal-close" onclick="window.closeWhisperModal()"
+                    style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-color);">✕</button>
+            </div>
+
+            <div id="whisper-not-installed-banner"
+                style="display: none; background: rgba(244, 67, 54, 0.15); border: 1px solid rgba(244, 67, 54, 0.4); border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.45; color: #ff8a80;">
+                <div style="font-weight: 600; margin-bottom: 4px;">⚠️ faster-whisper is not installed</div>
+                <div>To enable local voice and video note transcription, run in your terminal:</div>
+                <code
+                    style="display: block; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; margin-top: 5px; font-family: monospace; user-select: all; color: #fff;">pip install faster-whisper av</code>
+                <div style="margin-top: 4px; font-size: 11px; opacity: 0.85;">Or execute verification script:
+                    <code>python tools/setup_whisper.py</code>
+                </div>
+            </div>
+
+            <div style="font-size: 12.5px; color: var(--text-color-light); line-height: 1.5;">
+                Transcriptions run entirely <b>offline on your local machine</b> using <b>faster-whisper</b>. When run
+                for the first time, your chosen model weights will be automatically downloaded.
+            </div>
+
+            <!-- Model Selection -->
+            <div>
+                <label
+                    style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text-color);">Model
+                    Size & Quality:</label>
+                <select id="whisper-model-select"
+                    style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12.5px; background: var(--bg-color, #131924); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">
+                    <option value="tiny">tiny (~75 MB) — Fastest, minimal RAM, basic accuracy</option>
+                    <option value="base" selected>base (~145 MB) — Fast, balanced (Recommended)</option>
+                    <option value="small">small (~480 MB) — Better accuracy, moderate speed</option>
+                    <option value="medium">medium (~1.5 GB) — High accuracy, requires more RAM/VRAM</option>
+                    <option value="large-v3-turbo">large-v3-turbo (~1.6 GB) — State-of-the-art multilingual accuracy
+                    </option>
+                </select>
+            </div>
+
+            <!-- Device & Acceleration -->
+            <div>
+                <label
+                    style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text-color);">Computation
+                    Device:</label>
+                <select id="whisper-device-select"
+                    style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12.5px; background: var(--bg-color, #131924); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">
+                    <option value="auto">Auto-Detect (GPU if available, CPU fallback)</option>
+                    <option value="cuda">NVIDIA GPU (CUDA / float16)</option>
+                    <option value="cpu">CPU (High-speed int8 quantization)</option>
+                </select>
+                <div id="whisper-device-detected"
+                    style="font-size: 11px; color: var(--text-color-light); margin-top: 4px;">Detected: checking
+                    system...</div>
+            </div>
+
+            <!-- Custom Model Cache Directory -->
+            <div>
+                <label
+                    style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; color: var(--text-color);">Custom
+                    Model Download Folder (Optional):</label>
+                <input type="text" id="whisper-download-root"
+                    placeholder="Leave empty for default (~/.cache/huggingface/hub)"
+                    style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-color, #131924); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">
+                <span style="font-size: 11px; color: var(--text-color-light); display: block; margin-top: 3px;">Useful
+                    if your C: drive has limited space and you want models on D: or E:.</span>
+            </div>
+
+            <!-- Action buttons -->
+            <div
+                style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                <button type="button" class="secondary-btn" onclick="window.closeWhisperModal()"
+                    style="padding: 7px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;">Cancel</button>
+                <button type="button" id="whisper-save-btn" class="start-btn"
+                    style="width: auto; padding: 7px 18px; font-size: 12px; border-radius: 6px; cursor: pointer;"
+                    onclick="window.saveWhisperSettingsAndProceed()">
+                    <span>💾</span> Save & Transcribe
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Dedicated Whisper Download Progress Modal -->
+    <div id="whisper-download-modal" class="modal-overlay" style="display: none; z-index: 5000;">
+        <div class="settings-modal-content" style="max-width: 440px; width: 90%; text-align: center;">
+            <h3 style="margin-top: 0; font-size: 16px;">🎙️ Downloading Whisper Model</h3>
+            <p id="whisper-dl-model-name" style="font-size: 13px; color: var(--text-color-light); margin-bottom: 15px;">
+                Model: 'base'</p>
+            <div
+                style="width: 100%; height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border-color);">
+                <div id="whisper-dl-progress-bar"
+                    style="width: 0%; height: 100%; background: #2196f3; transition: width 0.2s ease;"></div>
+            </div>
+            <div
+                style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-color-light); margin-bottom: 15px;">
+                <span id="whisper-dl-bytes">0 MB / 142 MB (0%)</span>
+                <span id="whisper-dl-speed">0.0 MB/s</span>
+            </div>
+            <p id="whisper-dl-status"
+                style="font-size: 11px; color: var(--text-color-light); font-style: italic; margin-bottom: 0;">Weights
+                will be cached locally for instant transcription.</p>
+        </div>
+    </div>
+
+    <!-- Folders Manager Modal -->
+    <div id="folders-manager-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 540px; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>📁</span> <span>Telegram & Custom Folders</span>
+                </h3>
+                <button type="button" class="modal-close" onclick="FoldersManager.closeModal()">✕</button>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin: 12px 0 14px; flex-wrap: wrap;">
+                <button type="button" id="fm-sync-btn" class="action-btn"
+                    onclick="FoldersManager.syncTelegramFolders()">
+                    🔄 <span>Sync from Telegram</span>
+                </button>
+                <button type="button" id="fm-create-btn" class="action-btn secondary-btn"
+                    onclick="FoldersManager.toggleCreateForm()">
+                    ➕ <span>New Custom Folder</span>
+                </button>
+            </div>
+
+            <!-- Create Folder Form (Collapsible) -->
+            <div id="fm-create-form"
+                style="display: none; padding: 10px; background: rgba(0,0,0,0.15); border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--border-color);">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: 6px;">Create Custom Folder</div>
+                <div style="display: flex; gap: 6px;">
+                    <input type="text" id="fm-new-emoticon" value="📁" maxlength="4"
+                        style="width: 44px; text-align: center; padding: 4px; font-size: 14px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                    <input type="text" id="fm-new-title" placeholder="Folder title (e.g. Work, Crypto)"
+                        style="flex: 1; padding: 4px 8px; font-size: 12px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                    <button type="button" class="action-btn" onclick="FoldersManager.submitCreateFolder()"
+                        style="padding: 4px 10px; font-size: 12px;">Save</button>
+                    <button type="button" class="secondary-btn" onclick="FoldersManager.toggleCreateForm(false)"
+                        style="padding: 4px 8px; font-size: 12px;">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Folders List Container -->
+            <div id="fm-folders-list"
+                style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; min-height: 180px; max-height: 360px; padding-right: 4px;">
+                <div style="text-align: center; padding: 20px; opacity: 0.6;">Loading folders...</div>
+            </div>
+
+            <!-- Chat Assignment Drawer (embedded within modal) -->
+            <div id="fm-assign-drawer"
+                style="display: none; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 12px;" id="fm-assign-title">Manage Chats in Folder</div>
+                    <button type="button" class="action-btn secondary-btn" onclick="FoldersManager.closeAssignDrawer()"
+                        style="font-size: 11px; padding: 3px 8px;">✕ Done</button>
+                </div>
+                <input type="text" id="fm-assign-search" placeholder="Filter chats..."
+                    style="width: 100%; box-sizing: border-box; padding: 4px 8px; font-size: 11px; margin-bottom: 6px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                <div id="fm-assign-chats-list"
+                    style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;"></div>
+                <button type="button" class="action-btn" onclick="FoldersManager.closeAssignDrawer()"
+                    style="width: 100%; margin-top: 8px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    ✓ Done Selecting Chats
+                </button>
+            </div>
+
+            <div
+                style="display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+                <button type="button" class="secondary-btn" onclick="FoldersManager.closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chat Folders Context Menu -->
+    <div id="folder-context-menu"
+        style="display: none; position: fixed; z-index: 10000; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); padding: 6px; min-width: 180px;">
+        <div
+            style="font-size: 11px; font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px; opacity: 0.7;">
+            📁 Add to Folder:</div>
+        <div id="folder-context-menu-items"
+            style="display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto;"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/state.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/emoji_engine.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/engines.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/formatting.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/messages.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/stats.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/users.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/admin_log.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/search.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/archive.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_settings.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/asset_inspector.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/resume.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/whisper_ui.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/player.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/update_ui.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/lightbox.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/context_menu.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/shortcuts.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/folders.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/calendar.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/bookmarks.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/investigator.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/export.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/participants.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/virtual_chat.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/voice_player.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='js/live_ui.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', filename='app.js') }}?v={{ version }}"></script>
+
+</body>
+
+</html>
