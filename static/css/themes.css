@@ -1,0 +1,195 @@
+/* --- 1. ПЕРЕМЕННЫЕ И БАЗА --- */
+
+/* ── Тема-независимые переменные ── */
+:root {
+    --system-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    /* Ширины колонок */
+    --sidebar-width: 320px;
+    --right-panel-width: 350px;
+
+    /* Стекло / анимации / фоны */
+    --glass-blur: 12px;
+    --glass-opacity: 0.82;
+    --transition-fast: 0.18s ease;
+    --transition-med: 0.3s ease;
+    --bg-blur: 0px;
+    --bg-dim: 1.0;
+
+    /* Telegram 7-цветная палитра имён отправителей */
+    --peer-color-0: #c03d33;
+    --peer-color-1: #e07e1a;
+    --peer-color-2: #9b59b6;
+    --peer-color-3: #27ae60;
+    --peer-color-4: #13a9a5;
+    --peer-color-5: #3a8ed0;
+    --peer-color-6: #d35163;
+}
+
+/* ── Светлая тема (дефолт) ── */
+body[data-theme="light"],
+html[data-theme-preload="light"] body {
+    /* Базовые цвета */
+    --bg-color: #f0f2f5;
+    --chat-bg-color: #e5ddd5;
+    --header-bg: #ffffff;
+
+    /* Панели и Ховеры */
+    --panel-bg: #ffffff;
+    --bg-color-alt: rgba(120, 120, 120, 0.1);
+    --bg-color-alt-hover: rgba(120, 120, 120, 0.18);
+
+    --panel-bg-alt: #f9f9f9;
+    --panel-bg-alt2: #f1f1f1;
+    --hover-bg: #f4f4f5;
+    --hover-bg-alt: #e4e6e9;
+    --hover-bg-alt2: #eee;
+    --border-color: #ddd;
+
+    /* Тексты */
+    --text-color: #000000;
+    --text-color-strong: #222222;
+    --text-color-light: #666666;
+    --text-color-muted: #888888;
+
+    /* Акценты по умолчанию (Light Default) */
+    --accent-color: #0b8a00;
+    --msg-bg-out: rgba(220, 248, 198, 0.88);
+    --msg-bg-in: #ffffff;
+    --sender-name-color: #0b8a00;
+    --link-color: #0056b3;
+    --highlight-bg: #fdf5c9;
+
+    /* Сообщения и служебные */
+    --service-msg-bg: #e1f2fb;
+    --service-msg-text: #444;
+
+    /* Реплаи */
+    --reply-bg: rgba(0, 0, 0, 0.05);
+    --reply-hover-bg: rgba(0, 0, 0, 0.08);
+
+    /* RGB-компоненты */
+    --glass-bg-rgb: 255, 255, 255;
+    --msg-in-rgb: 255, 255, 255;
+    --msg-out-rgb: 220, 248, 198;
+}
+
+/* ── Тёмная тема ── */
+body[data-theme="dark"],
+html[data-theme-preload="dark"] body {
+    /* Базовые цвета */
+    --bg-color: #0e0e10;
+    --chat-bg-color: #1a1a2e;
+    --header-bg: #16161a;
+
+    /* Панели и Ховеры */
+    --panel-bg: #1c1c24;
+    --bg-color-alt: rgba(255, 255, 255, 0.08);
+    --bg-color-alt-hover: rgba(255, 255, 255, 0.15);
+
+    --panel-bg-alt: #24242e;
+    --panel-bg-alt2: #2a2a35;
+    --hover-bg: #2a2a35;
+    --hover-bg-alt: #323242;
+    --hover-bg-alt2: #383848;
+    --border-color: #2a2a3a;
+
+    /* Тексты */
+    --text-color: #e0e0e0;
+    --text-color-strong: #ffffff;
+    --text-color-light: #9a9aaa;
+    --text-color-muted: #666677;
+
+    /* Акценты (Dark) */
+    --accent-color: #3390ec;
+    --msg-bg-out: rgba(43, 82, 120, 0.88);
+    --msg-bg-in: #1e1e2e;
+    --sender-name-color: #7aa2f7;
+    --link-color: #7dcfff;
+    --highlight-bg: #4a4d3a;
+
+    /* Сообщения и служебные */
+    --service-msg-bg: rgba(42, 42, 58, 0.85);
+    --service-msg-text: #e0e0e0;
+
+    /* Реплаи */
+    --reply-bg: rgba(255, 255, 255, 0.08);
+    --reply-hover-bg: rgba(255, 255, 255, 0.12);
+
+    /* RGB-компоненты */
+    --glass-bg-rgb: 22, 22, 26;
+    --msg-in-rgb: 30, 30, 46;
+    --msg-out-rgb: 43, 82, 120;
+}
+
+/* ════════════════════════════════════════════════
+   ── ПОЛЬЗОВАТЕЛЬСКИЕ ПАЛИТРЫ (PALETTES) ──
+   ════════════════════════════════════════════════ */
+
+/* Светлые палитры */
+body[data-theme="light"][data-palette="rose"] {
+    --msg-out-rgb: 255, 228, 230;
+    /* #ffe4e6 */
+    --msg-bg-out: rgba(255, 228, 230, 0.88);
+    --sender-name-color: #be185d;
+    --link-color: #db2777;
+}
+
+body[data-theme="light"][data-palette="mint"] {
+    --msg-out-rgb: 204, 251, 241;
+    /* #ccfbf1 */
+    --msg-bg-out: rgba(204, 251, 241, 0.88);
+    --sender-name-color: #0f766e;
+    --link-color: #0d9488;
+}
+
+body[data-theme="light"][data-palette="lavender"] {
+    --msg-out-rgb: 237, 233, 254;
+    /* #ede9fe */
+    --msg-bg-out: rgba(237, 233, 254, 0.88);
+    --sender-name-color: #6d28d9;
+    --link-color: #7c3aed;
+}
+
+body[data-theme="light"][data-palette="sand"] {
+    --msg-out-rgb: 254, 240, 138;
+    /* #fef08a */
+    --msg-bg-out: rgba(254, 240, 138, 0.88);
+    --sender-name-color: #b45309;
+    --link-color: #d97706;
+}
+
+/* Темные палитры */
+body[data-theme="dark"][data-palette="dracula"] {
+    --msg-out-rgb: 68, 71, 90;
+    /* #44475a */
+    --msg-bg-out: rgba(68, 71, 90, 0.88);
+    --sender-name-color: #ff79c6;
+    --link-color: #8be9fd;
+}
+
+body[data-theme="dark"][data-palette="nord"] {
+    --msg-out-rgb: 67, 76, 94;
+    /* #434c5e */
+    --msg-bg-out: rgba(67, 76, 94, 0.88);
+    --sender-name-color: #88c0d0;
+    --link-color: #8fbcbb;
+}
+
+body[data-theme="dark"][data-palette="midnight"] {
+    --msg-out-rgb: 31, 27, 36;
+    /* #1f1b24 */
+    --msg-bg-out: rgba(31, 27, 36, 0.88);
+    --sender-name-color: #bb86fc;
+    --link-color: #03dac6;
+}
+
+body[data-theme="dark"][data-palette="gruvbox"] {
+    --msg-out-rgb: 80, 73, 69;
+    /* #504945 */
+    --msg-bg-out: rgba(80, 73, 69, 0.88);
+    --sender-name-color: #fabd2f;
+    --link-color: #8ec07c;
+}
+
+
