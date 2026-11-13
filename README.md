@@ -1,5 +1,7 @@
 # TeleBackup
 
+🌐 **Русский:** [README_RU.md](README_RU.md)
+
 Ever had been kicked off a group chat that had lots of important photos? Were your DMs deleted, and you scramble to find shared memories of an important person? Or perchance, you remember someone saying something, and when you come back you see the "edit" tag, but cant remember the original message?
 
 There is an all-in-one solution for all those problems: A local Telegram backup tool and offline web viewer built with Python (Telethon + Flask), SQLite, and vanilla JavaScript.
